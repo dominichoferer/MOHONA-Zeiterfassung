@@ -16,6 +16,45 @@ export default function DashboardPage() {
   )
 }
 
+const QUOTES = [
+  'Großes entsteht aus kleinen Schritten.',
+  'Qualität ist kein Zufall.',
+  'Ideen brauchen Mut. Mut braucht Anfänge.',
+  'Wer aufhört besser zu werden, hat aufgehört gut zu sein.',
+  'Kreativität ist Intelligenz, die Spaß hat.',
+  'Das Beste kommt, wenn man nicht aufgibt.',
+  'Jeder Tag ist eine neue Chance.',
+  'Weniger, aber besser.',
+  'Erst denken, dann gestalten.',
+  'Details machen den Unterschied.',
+  'Gut ist der Feind von großartig.',
+  'Einfachheit ist die höchste Form der Raffinesse.',
+  'Form follows function.',
+  'Mach es mit Leidenschaft oder gar nicht.',
+  'Das Ziel ist Exzellenz, nicht Perfektion.',
+  'Vertraue dem Prozess.',
+  'Jede Idee beginnt mit einem leeren Blatt.',
+  'Gestalte die Welt, die du sehen willst.',
+  'Mut zur Lücke – und dann füll sie.',
+  'Arbeit, die begeistert, begeistert auch andere.',
+  'Manchmal ist weniger Rauschen mehr Signal.',
+  'Ein guter Tag beginnt mit einem klaren Kopf.',
+  'Stärken stärken statt Schwächen schwächen.',
+  'Hinter jedem Projekt steckt ein Mensch.',
+  'Mach heute etwas, worauf du morgen stolz bist.',
+  'Perfektion ist ein Weg, kein Ziel.',
+  'Fokus schlägt Fleiss.',
+  'Wer fragt, führt.',
+  'Neugier ist der Motor des Fortschritts.',
+  'Ästhetik ist keine Kleinigkeit.',
+]
+
+function dailyQuote(): string {
+  const d = new Date()
+  const dayOfYear = Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 86400000)
+  return QUOTES[dayOfYear % QUOTES.length]
+}
+
 function DashboardContent({ profile }: { profile: Profile }) {
   const now = new Date()
   const [dateFrom, setDateFrom] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`)
@@ -46,8 +85,8 @@ function DashboardContent({ profile }: { profile: Profile }) {
             <h1 className="text-6xl text-white" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300, letterSpacing: '0.08em' }}>
               Hallo, {profile.staff_name?.split(' ')[0] ?? profile.staff_code ?? 'dort'}.
             </h1>
-            <p className="text-sm text-white/60 mt-3 font-light tracking-wide">
-              {dateFrom === dateTo ? dateFrom : `${dateFrom} – ${dateTo}`}
+            <p className="text-sm text-white/60 mt-3 font-light tracking-wide italic">
+              {dailyQuote()}
             </p>
           </div>
         </div>
