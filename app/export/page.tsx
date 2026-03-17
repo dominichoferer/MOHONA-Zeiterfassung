@@ -75,11 +75,16 @@ function ExportContent({ profile }: { profile: Profile }) {
   async function handleCSVExport() {
     setExporting('csv')
     const entries = await fetchEntries()
-    const headers = ['Datum', 'Firma', 'Projekt', 'Beschreibung', 'Dauer (Min)', 'Dauer', 'Mitarbeiter']
+    const headers = ['Datum', 'Firma', 'Projekt', 'Überschrift', 'Beschreibung', 'Dauer (Min)', 'Dauer', 'Mitarbeiter']
     const rows = entries.map(e => [
-      e.date, e.company?.name ?? '', e.project?.name ?? '',
-      `"${e.description.replace(/"/g, '""')}"`,
-      e.duration_minutes, formatDuration(e.duration_minutes), e.staff_code,
+      e.date,
+      `"${(e.company?.name ?? '').replace(/"/g, '""')}"`,
+      `"${((e.project as {name?: string})?.name ?? '').replace(/"/g, '""')}"`,
+      `"${(e.description ?? '').replace(/"/g, '""')}"`,
+      `"${(e.notes ?? '').replace(/"/g, '""')}"`,
+      e.duration_minutes,
+      formatDuration(e.duration_minutes),
+      e.staff_code,
     ])
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
@@ -97,53 +102,80 @@ function ExportContent({ profile }: { profile: Profile }) {
     const entries = await fetchEntries()
     const totalMinutes = entries.reduce((s, e) => s + e.duration_minutes, 0)
     const companyFilter = filterCompany ? companies.find(c => c.id === filterCompany)?.name ?? '' : 'Alle Firmen'
+    const projectFilter = filterProject ? projects.find(p => p.id === filterProject)?.name ?? '' : ''
+    const origin = window.location.origin
 
     const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
 <style>
+@font-face { font-family:'Dazzle Unicase'; src:url('${origin}/fonts/dazzle-unicase-light.otf') format('opentype'); font-weight:300; }
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400&display=swap');
 * { margin:0;padding:0;box-sizing:border-box; }
-body { font-family:Arial,sans-serif;color:#1e1813;background:white;padding:40px; }
-.header { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #2c2316; }
-.logo { font-size:20px;font-weight:700;color:#2c2316;letter-spacing:2px; } .logo span { color:#8a7f72;font-weight:300;font-size:12px;display:block;margin-top:2px; }
-.meta { text-align:right;font-size:12px;color:#8a7f72; } .meta strong { color:#1e1813;display:block;margin-bottom:4px; }
-.summary { display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px; }
-.card { background:#faf8f5;border-radius:8px;padding:16px;border:1px solid #e5dfd5; }
-.card .label { font-size:11px;color:#8a7f72;text-transform:uppercase;letter-spacing:0.5px; }
-.card .value { font-size:22px;font-weight:600;margin-top:4px;color:#1e1813; }
-table { width:100%;border-collapse:collapse;font-size:12px; }
-thead tr { background:#2c2316;color:white; }
-th { padding:10px 12px;text-align:left;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px; }
+body { font-family:'DM Sans',Arial,sans-serif;font-weight:300;color:#1e1813;background:#faf8f5; }
+.hero { background:#2c2316;padding:40px 48px;display:flex;justify-content:space-between;align-items:flex-end; }
+.hero-left img { height:28px;margin-bottom:16px;display:block; }
+.hero-title { font-family:'Dazzle Unicase',serif;font-weight:300;font-size:32px;color:white;letter-spacing:0.06em; }
+.hero-sub { font-size:12px;color:rgba(255,255,255,0.5);margin-top:6px;font-weight:300; }
+.hero-meta { text-align:right;font-size:12px;color:rgba(255,255,255,0.6); }
+.hero-meta strong { color:white;display:block;font-size:14px;margin-bottom:4px;font-weight:400; }
+.content { padding:32px 48px; }
+.summary { display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px; }
+.card { background:white;border-radius:10px;padding:16px 20px;border:1px solid #e5dfd5; }
+.card .label { font-size:10px;color:#8a7f72;text-transform:uppercase;letter-spacing:0.8px;font-weight:400; }
+.card .value { font-family:'Dazzle Unicase',serif;font-size:24px;font-weight:300;margin-top:6px;color:#1e1813;letter-spacing:0.04em; }
+table { width:100%;border-collapse:collapse;background:white;border-radius:10px;overflow:hidden;border:1px solid #e5dfd5; }
+thead tr { background:#2c2316; }
+th { padding:11px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:white;font-weight:400; }
 tbody tr:nth-child(even) { background:#faf8f5; }
-td { padding:10px 12px;border-bottom:1px solid #f0ebe3; }
-.badge { display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500; }
-.footer { margin-top:32px;text-align:center;font-size:11px;color:#b5a99a; }
+td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
+.badge { display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:400; }
+.desc-title { font-size:12px;color:#1e1813;font-weight:400; }
+.desc-notes { font-size:11px;color:#8a7f72;margin-top:3px;font-weight:300;line-height:1.5; }
+.dur { font-family:'Dazzle Unicase',serif;font-weight:300;font-size:13px;color:#1e1813;white-space:nowrap; }
+.footer { margin-top:24px;text-align:center;font-size:10px;color:#b5a99a;padding-bottom:16px; }
+@media print { body{background:white} .hero{-webkit-print-color-adjust:exact;print-color-adjust:exact} thead tr{-webkit-print-color-adjust:exact;print-color-adjust:exact} }
 </style></head><body>
-<div class="header">
-  <div class="logo">MOHONA <span>Zeiterfassung</span></div>
-  <div class="meta"><strong>Zeitraum: ${dateFrom} – ${dateTo}</strong>Firma: ${companyFilter}<br>Erstellt: ${new Date().toLocaleDateString('de-AT')}</div>
+<div class="hero">
+  <div>
+    <img src="${origin}/logo-mohona-white.svg" alt="MOHONA" />
+    <div class="hero-title">Zeiterfassung</div>
+    <div class="hero-sub">${dateFrom} – ${dateTo}</div>
+  </div>
+  <div class="hero-meta">
+    <strong>${companyFilter}${projectFilter ? ` · ${projectFilter}` : ''}</strong>
+    Erstellt am ${new Date().toLocaleDateString('de-AT', { day:'2-digit', month:'long', year:'numeric' })}
+  </div>
 </div>
-<div class="summary">
-  <div class="card"><div class="label">Gesamt</div><div class="value">${formatDuration(totalMinutes)}</div></div>
-  <div class="card"><div class="label">Einträge</div><div class="value">${entries.length}</div></div>
-  <div class="card"><div class="label">Zeitraum</div><div class="value" style="font-size:14px">${dateFrom}<br>${dateTo}</div></div>
+<div class="content">
+  <div class="summary">
+    <div class="card"><div class="label">Gesamtstunden</div><div class="value">${formatDuration(totalMinutes)}</div></div>
+    <div class="card"><div class="label">Einträge</div><div class="value">${entries.length}</div></div>
+    <div class="card"><div class="label">Firma</div><div class="value" style="font-size:14px;margin-top:8px">${companyFilter}</div></div>
+    <div class="card"><div class="label">Zeitraum</div><div class="value" style="font-size:13px;margin-top:8px">${dateFrom}<br>${dateTo}</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Datum</th><th>Firma</th><th>Tätigkeit</th><th>Projekt</th><th>Dauer</th><th>Mitarbeiter</th></tr></thead>
+    <tbody>
+    ${entries.map(e => `<tr>
+      <td style="font-size:11px;color:#8a7f72;white-space:nowrap">${e.date}</td>
+      <td><span class="badge" style="background:${e.company?.color ?? '#e5dfd5'};color:${e.company?.text_color ?? '#1e1813'}">${e.company?.name ?? '–'}</span></td>
+      <td>
+        <div class="desc-title">${e.description ?? ''}</div>
+        ${e.notes ? `<div class="desc-notes">${e.notes}</div>` : ''}
+      </td>
+      <td style="font-size:11px;color:#8a7f72">${(e.project as {name?: string})?.name ?? '–'}</td>
+      <td><span class="dur">${formatDuration(e.duration_minutes)}</span></td>
+      <td style="font-size:11px;color:#8a7f72">${e.staff_code}</td>
+    </tr>`).join('')}
+    </tbody>
+  </table>
+  <div class="footer">MOHONA Zeiterfassung &middot; ${new Date().getFullYear()}</div>
 </div>
-<table>
-<thead><tr><th>Datum</th><th>Firma</th><th>Beschreibung</th><th>Dauer</th><th>Mitarbeiter</th></tr></thead>
-<tbody>
-${entries.map(e => `<tr>
-  <td>${e.date}</td>
-  <td><span class="badge" style="background:${e.company?.color ?? '#e5dfd5'};color:${e.company?.text_color ?? '#1e1813'}">${e.company?.name ?? '–'}</span></td>
-  <td>${e.description}</td>
-  <td><strong>${formatDuration(e.duration_minutes)}</strong></td>
-  <td>${e.staff_code}</td>
-</tr>`).join('')}
-</tbody></table>
-<div class="footer">MOHONA Zeiterfassung · ${new Date().getFullYear()}</div>
 </body></html>`
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const win = window.open(url, '_blank')
-    if (win) win.onload = () => setTimeout(() => { win.print(); URL.revokeObjectURL(url) }, 500)
+    if (win) win.onload = () => setTimeout(() => { win.print(); URL.revokeObjectURL(url) }, 800)
     setExporting(null)
   }
 
