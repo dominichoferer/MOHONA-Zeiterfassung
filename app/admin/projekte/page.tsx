@@ -7,7 +7,8 @@ import Navbar from '@/components/Navbar'
 import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Company, Project, Profile } from '@/lib/types'
-import { Plus, Pencil, X, Check, ChevronDown } from 'lucide-react'
+import { Plus, Pencil, X, Check, Search } from 'lucide-react'
+import CompanySelect from '@/components/CompanySelect'
 import CompanyBadge from '@/components/CompanyBadge'
 
 const inputClass = "w-full border border-[#e5dfd5] rounded-lg px-4 py-2.5 text-sm text-[#1e1813] focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light"
@@ -32,6 +33,7 @@ function ProjekteContent({ profile }: { profile: Profile }) {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [filterCompany, setFilterCompany] = useState('')
+  const [filterName, setFilterName] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', company_id: '' })
@@ -54,7 +56,9 @@ function ProjekteContent({ profile }: { profile: Profile }) {
     })
   }, [])
 
-  const filtered = filterCompany ? projects.filter(p => p.company_id === filterCompany) : projects
+  const filtered = projects
+    .filter(p => !filterCompany || p.company_id === filterCompany)
+    .filter(p => !filterName || p.name.toLowerCase().includes(filterName.toLowerCase()))
 
   async function handleAdd() {
     if (!form.name.trim() || !form.company_id) return
@@ -96,14 +100,15 @@ function ProjekteContent({ profile }: { profile: Profile }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#e5dfd5] p-4 mb-4">
-        <div className="relative inline-block">
-          <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)}
-            className="border border-[#e5dfd5] rounded-lg pl-3 pr-8 py-2 text-sm text-[#1e1813] appearance-none focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light">
-            <option value="">Alle Firmen</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#b5a99a] pointer-events-none" />
+      <div className="bg-white rounded-xl border border-[#e5dfd5] p-4 mb-4 flex items-center gap-3">
+        <div className="w-52">
+          <CompanySelect companies={companies} value={filterCompany} onChange={setFilterCompany} placeholder="Alle Firmen" />
+        </div>
+        <div className="flex items-center gap-2 border border-[#e5dfd5] rounded-lg px-3 py-2.5 bg-white flex-1 max-w-xs">
+          <Search size={13} className="text-[#b5a99a] shrink-0" />
+          <input type="text" value={filterName} onChange={e => setFilterName(e.target.value)}
+            placeholder="Projekt suchen..." className="flex-1 text-sm text-[#1e1813] focus:outline-none font-light bg-transparent placeholder-[#b5a99a]" />
+          {filterName && <button onClick={() => setFilterName('')}><X size={12} className="text-[#b5a99a] hover:text-[#1e1813]" /></button>}
         </div>
       </div>
 
@@ -177,14 +182,7 @@ function ProjectForm({ form, setForm, companies, onSave, onCancel, saving }: {
         </div>
         <div>
           <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Firma</label>
-          <div className="relative">
-            <select value={form.company_id} onChange={e => setForm({ ...form, company_id: e.target.value })}
-              className="w-full border border-[#e5dfd5] rounded-lg px-4 py-2.5 pr-9 text-sm text-[#1e1813] appearance-none focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light">
-              <option value="">Firma wählen</option>
-              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#b5a99a] pointer-events-none" />
-          </div>
+          <CompanySelect companies={companies} value={form.company_id} onChange={id => setForm({ ...form, company_id: id })} />
         </div>
       </div>
       <div className="flex gap-3">

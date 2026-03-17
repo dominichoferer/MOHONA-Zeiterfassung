@@ -5,9 +5,16 @@ import { collection, getDocs, deleteDoc, doc, query, where } from 'firebase/fire
 import { db } from '@/lib/firebase'
 import { TimeEntry, Company, Profile } from '@/lib/types'
 import { formatDuration, formatDateShort } from '@/lib/utils'
-import { Pencil, Trash2, ChevronDown, X } from 'lucide-react'
+import { Pencil, Trash2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X } from 'lucide-react'
 import CompanyBadge from './CompanyBadge'
+import CompanySelect from './CompanySelect'
 import EditEntryModal from './EditEntryModal'
+
+const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+
+function lastDayOfMonth(year: number, month: number): string {
+  return new Date(year, month, 0).toISOString().split('T')[0]
+}
 
 interface EntryListProps {
   profile: Profile
@@ -20,12 +27,28 @@ export default function EntryList({ profile }: EntryListProps) {
   const [editEntry, setEditEntry] = useState<TimeEntry | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
 
+  const now = new Date()
+  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth() + 1)
   const [filterCompany, setFilterCompany] = useState('')
-  const [filterDateFrom, setFilterDateFrom] = useState('')
-  const [filterDateTo, setFilterDateTo] = useState('')
 
   const isAdmin = profile.role === 'admin'
+
+  const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`
+  const dateTo = lastDayOfMonth(year, month)
+
+  function prevMonth() {
+    if (month === 1) { setMonth(12); setYear(y => y - 1) }
+    else setMonth(m => m - 1)
+  }
+  function nextMonth() {
+    if (month === 12) { setMonth(1); setYear(y => y + 1) }
+    else setMonth(m => m + 1)
+  }
+
+  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i)
 
   useEffect(() => {
     getDocs(collection(db, 'companies')).then(snap => {
@@ -36,19 +59,15 @@ export default function EntryList({ profile }: EntryListProps) {
     })
   }, [])
 
-  useEffect(() => { loadEntries() }, [filterCompany, filterDateFrom, filterDateTo, isAdmin])
+  useEffect(() => { loadEntries() }, [filterCompany, dateFrom, dateTo, isAdmin])
 
   async function loadEntries() {
     setLoading(true)
-
-    // Fetch entries: admin gets all, user gets own only (single where = no composite index)
     const snap = await getDocs(
       isAdmin
         ? collection(db, 'time_entries')
         : query(collection(db, 'time_entries'), where('user_id', '==', profile.user_id))
     )
-
-    // Load lookup data
     const [compSnap, projSnap, profSnap] = await Promise.all([
       getDocs(collection(db, 'companies')),
       getDocs(collection(db, 'projects')),
@@ -68,12 +87,8 @@ export default function EntryList({ profile }: EntryListProps) {
       } as TimeEntry
     })
 
-    // Filter client-side
+    result = result.filter(e => e.date >= dateFrom && e.date <= dateTo)
     if (filterCompany) result = result.filter(e => e.company_id === filterCompany)
-    if (filterDateFrom) result = result.filter(e => e.date >= filterDateFrom)
-    if (filterDateTo) result = result.filter(e => e.date <= filterDateTo)
-
-    // Sort by date desc
     result.sort((a, b) => b.date.localeCompare(a.date))
 
     setEntries(result)
@@ -88,33 +103,41 @@ export default function EntryList({ profile }: EntryListProps) {
     setDeleting(false)
   }
 
-  const hasFilters = filterCompany || filterDateFrom || filterDateTo
+  function toggleNotes(id: string) {
+    setExpandedNotes(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
   const totalMinutes = entries.reduce((s, e) => s + e.duration_minutes, 0)
 
   return (
     <div>
       <div className="bg-white rounded-xl border border-[#e5dfd5] p-4 mb-4 flex items-center gap-3 flex-wrap">
-        <div className="relative">
-          <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)}
-            className="border border-[#e5dfd5] rounded-lg pl-3 pr-8 py-2 text-sm text-[#1e1813] appearance-none focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light">
-            <option value="">Alle Firmen</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        {/* Month navigator */}
+        <div className="flex items-center gap-1 border border-[#e5dfd5] rounded-lg px-2 py-1.5">
+          <button onClick={prevMonth} className="p-0.5 text-[#8a7f72] hover:text-[#1e1813]"><ChevronLeft size={15} /></button>
+          <select value={month} onChange={e => setMonth(Number(e.target.value))}
+            className="text-sm text-[#1e1813] focus:outline-none font-light bg-transparent cursor-pointer">
+            {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
           </select>
-          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#b5a99a] pointer-events-none" />
+          <select value={year} onChange={e => setYear(Number(e.target.value))}
+            className="text-sm text-[#1e1813] focus:outline-none font-light bg-transparent cursor-pointer">
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <button onClick={nextMonth} className="p-0.5 text-[#8a7f72] hover:text-[#1e1813]"><ChevronRight size={15} /></button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[#8a7f72] font-light">Von</span>
-          <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
-            className="border border-[#e5dfd5] rounded-lg px-3 py-2 text-sm text-[#1e1813] focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light" />
-          <span className="text-xs text-[#8a7f72] font-light">bis</span>
-          <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
-            className="border border-[#e5dfd5] rounded-lg px-3 py-2 text-sm text-[#1e1813] focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light" />
+        {/* Company filter */}
+        <div className="w-48">
+          <CompanySelect companies={companies} value={filterCompany} onChange={setFilterCompany} placeholder="Alle Firmen" />
         </div>
 
-        {hasFilters && (
-          <button onClick={() => { setFilterCompany(''); setFilterDateFrom(''); setFilterDateTo('') }}
-            className="flex items-center gap-1 text-xs text-[#8a7f72] hover:text-[#1e1813] border border-[#e5dfd5] rounded-lg px-3 py-2 hover:border-[#b5a99a] font-light">
+        {filterCompany && (
+          <button onClick={() => setFilterCompany('')}
+            className="flex items-center gap-1 text-xs text-[#8a7f72] hover:text-[#1e1813] border border-[#e5dfd5] rounded-lg px-3 py-2 font-light">
             <X size={12} />Filter zurücksetzen
           </button>
         )}
@@ -144,22 +167,41 @@ export default function EntryList({ profile }: EntryListProps) {
             </thead>
             <tbody className="divide-y divide-[#f5f0ea]">
               {entries.map(entry => (
-                <tr key={entry.id} className="hover:bg-[#faf8f5] group transition-colors">
-                  <td className="px-4 py-3 text-xs text-[#8a7f72] whitespace-nowrap font-light">{formatDateShort(entry.date)}</td>
-                  <td className="px-4 py-3"><CompanyBadge company={entry.company} size="sm" /></td>
-                  <td className="px-4 py-3 text-sm text-[#1e1813] max-w-xs truncate font-light">{entry.description}</td>
-                  <td className="px-4 py-3 text-xs text-[#8a7f72] font-light">{(entry.project as {name?: string})?.name ?? <span className="text-[#e5dfd5]">–</span>}</td>
-                  <td className="px-4 py-3 text-xs font-medium text-[#1e1813] whitespace-nowrap">{formatDuration(entry.duration_minutes)}</td>
-                  {isAdmin && <td className="px-4 py-3 text-xs text-[#8a7f72] font-light">{entry.profile?.staff_name ?? entry.staff_code}</td>}
-                  <td className="px-4 py-3">
-                    {(isAdmin || entry.user_id === profile.user_id) && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => setEditEntry(entry)} className="p-1.5 text-[#b5a99a] hover:text-[#2c2316] hover:bg-[#f0ebe3] rounded-lg"><Pencil size={13} /></button>
-                        <button onClick={() => setDeleteConfirm(entry.id)} className="p-1.5 text-[#b5a99a] hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={13} /></button>
+                <>
+                  <tr key={entry.id} className="hover:bg-[#faf8f5] group transition-colors">
+                    <td className="px-4 py-3 text-xs text-[#8a7f72] whitespace-nowrap font-light">{formatDateShort(entry.date)}</td>
+                    <td className="px-4 py-3"><CompanyBadge company={entry.company} size="sm" /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm text-[#1e1813] font-light">{entry.description}</span>
+                        {entry.notes && (
+                          <button onClick={() => toggleNotes(entry.id)}
+                            className="text-[#b5a99a] hover:text-[#2c2316] transition-colors shrink-0">
+                            {expandedNotes.has(entry.id) ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                          </button>
+                        )}
                       </div>
-                    )}
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#8a7f72] font-light">{(entry.project as {name?: string})?.name ?? <span className="text-[#e5dfd5]">–</span>}</td>
+                    <td className="px-4 py-3 text-xs font-medium text-[#1e1813] whitespace-nowrap">{formatDuration(entry.duration_minutes)}</td>
+                    {isAdmin && <td className="px-4 py-3 text-xs text-[#8a7f72] font-light">{entry.profile?.staff_name ?? entry.staff_code}</td>}
+                    <td className="px-4 py-3">
+                      {(isAdmin || entry.user_id === profile.user_id) && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => setEditEntry(entry)} className="p-1.5 text-[#b5a99a] hover:text-[#2c2316] hover:bg-[#f0ebe3] rounded-lg"><Pencil size={13} /></button>
+                          <button onClick={() => setDeleteConfirm(entry.id)} className="p-1.5 text-[#b5a99a] hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={13} /></button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                  {entry.notes && expandedNotes.has(entry.id) && (
+                    <tr key={`notes-${entry.id}`} className="bg-[#faf8f5]">
+                      <td colSpan={isAdmin ? 7 : 6} className="px-4 pb-3 pt-0">
+                        <p className="text-xs text-[#8a7f72] font-light leading-relaxed border-l-2 border-[#e5dfd5] pl-3">{entry.notes}</p>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>

@@ -4,27 +4,26 @@ import { useEffect, useState } from 'react'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { TimeEntry, Company } from '@/lib/types'
-import { formatDuration, startOfWeekISO, startOfMonthISO, todayISO } from '@/lib/utils'
+import { formatDuration, todayISO } from '@/lib/utils'
 import { Clock, TrendingUp, FileText } from 'lucide-react'
 import CompanyBadge from './CompanyBadge'
 
 interface DashboardStatsProps {
-  period: 'week' | 'month'
+  dateFrom: string
+  dateTo: string
   userId: string
 }
 
-export default function DashboardStats({ period, userId }: DashboardStatsProps) {
+export default function DashboardStats({ dateFrom, dateTo, userId }: DashboardStatsProps) {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
 
   const today = todayISO()
-  const periodStart = period === 'week' ? startOfWeekISO() : startOfMonthISO()
 
   useEffect(() => {
     async function load() {
       setLoading(true)
-      // Fetch all companies, filter client-side (avoids composite index)
       const compSnap = await getDocs(collection(db, 'companies'))
       const compList = compSnap.docs
         .map(d => ({ id: d.id, ...d.data() } as Company))
@@ -33,7 +32,6 @@ export default function DashboardStats({ period, userId }: DashboardStatsProps) 
       setCompanies(compList)
       const compMap = new Map(compList.map(c => [c.id, c]))
 
-      // Fetch entries by user only (no composite index needed), filter dates client-side
       const entriesSnap = await getDocs(
         query(collection(db, 'time_entries'), where('user_id', '==', userId))
       )
@@ -42,13 +40,13 @@ export default function DashboardStats({ period, userId }: DashboardStatsProps) 
           const data = d.data()
           return { id: d.id, ...data, company: data.company_id ? compMap.get(data.company_id) : undefined } as TimeEntry
         })
-        .filter(e => e.date >= periodStart && e.date <= today)
+        .filter(e => e.date >= dateFrom && e.date <= dateTo)
         .sort((a, b) => b.date.localeCompare(a.date))
       setEntries(raw)
       setLoading(false)
     }
     load()
-  }, [period, periodStart, today, userId])
+  }, [dateFrom, dateTo, userId])
 
   const totalMinutes = entries.reduce((s, e) => s + e.duration_minutes, 0)
   const todayEntries = entries.filter(e => e.date === today)
