@@ -27,7 +27,7 @@ function DashboardContent({ profile }: { profile: Profile }) {
           <img src="/dashboard-header.jpg" alt="" className="w-full h-full object-cover object-center" />
           <div className="absolute inset-0 bg-black/50" />
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <img src="/logo-mohona-white.svg" alt="MOHONA" className="h-5 w-auto mb-6 opacity-80" />
+            <img src="/logo-mohona-white.svg" alt="MOHONA" className="h-10 w-auto mb-6 opacity-80" />
             <h1 className="text-6xl text-white" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300, letterSpacing: '0.08em' }}>
               Hallo, {profile.staff_name?.split(' ')[0] ?? profile.staff_code ?? 'dort'}.
             </h1>
