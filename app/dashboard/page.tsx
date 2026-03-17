@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import AuthGuard from '@/components/AuthGuard'
 import Navbar from '@/components/Navbar'
 import DashboardStats from '@/components/DashboardStats'
@@ -20,15 +20,27 @@ function DashboardContent({ profile }: { profile: Profile }) {
   const now = new Date()
   const [dateFrom, setDateFrom] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`)
   const [dateTo, setDateTo] = useState(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0])
+  const [spotlight, setSpotlight] = useState<{ x: number; y: number } | null>(null)
+  const heroRef = useRef<HTMLDivElement>(null)
 
   return (
     <div className="min-h-screen bg-[#faf8f5]">
       <Navbar profile={profile} />
       <main className="pt-14">
         {/* Hero Header */}
-        <div className="relative w-full overflow-hidden" style={{ height: '560px' }}>
+        <div ref={heroRef} className="relative w-full overflow-hidden" style={{ height: '560px' }}
+          onMouseMove={e => {
+            const rect = heroRef.current!.getBoundingClientRect()
+            setSpotlight({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+          }}
+          onMouseLeave={() => setSpotlight(null)}>
           <img src="/dashboard-header.jpg" alt="" className="w-full h-full object-cover object-center" />
           <div className="absolute inset-0 bg-black/50" />
+          {spotlight && (
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: `radial-gradient(150px circle at ${spotlight.x}px ${spotlight.y}px, rgba(245,236,220,0.18) 0%, transparent 100%)`,
+            }} />
+          )}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center" style={{ paddingBottom: '60px' }}>
             <img src="/logo-mohona-white.svg" alt="MOHONA" className="h-10 w-auto mb-8 opacity-80" style={{ marginTop: '-80px' }} />
             <h1 className="text-6xl text-white" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300, letterSpacing: '0.08em' }}>
