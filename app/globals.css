@@ -1,26 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap');
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-brown:        #2c2316;
+  --color-brown-hover:  #3d3220;
+  --color-dark:         #1e1813;
+  --color-surface:      #ffffff;
+  --color-background:   #faf8f5;
+  --color-muted-bg:     #f5f0ea;
+  --color-gray-medium:  #8a7f72;
+  --color-gray-border:  #e5dfd5;
+  --color-gray-muted:   #b5a99a;
+  --color-accent-light: #f0ebe3;
+  --color-success:      #16a34a;
+  --color-danger:       #dc2626;
+  --color-warning:      #d97706;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-sans:    'DM Sans', system-ui, -apple-system, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-weight: 300;
+  background-color: #faf8f5;
+  color: #1e1813;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+button, a, input, select, textarea {
+  transition: all 150ms ease-in-out;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #faf8f5;
+}
+::-webkit-scrollbar-thumb {
+  background: #e5dfd5;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b5a99a;
 }

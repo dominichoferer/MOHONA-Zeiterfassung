@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuth() &&
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Profiles: alle lesen, eigenes anlegen/bearbeiten
+    match /profiles/{userId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.auth.uid == userId;
+      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Companies: alle lesen, nur Admins schreiben
+    match /companies/{companyId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Projects: alle lesen, nur Admins schreiben
+    match /projects/{projectId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Time Entries: eigene lesen/schreiben, Admins alles
+    match /time_entries/{entryId} {
+      allow read: if isAuth() && (
+        resource.data.user_id == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuth() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuth() && (
+        resource.data.user_id == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuth() && (
+        resource.data.user_id == request.auth.uid || isAdmin()
+      );
+    }
+  }
+}
