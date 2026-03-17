@@ -100,7 +100,7 @@ function DashboardContent({ profile }: { profile: Profile }) {
                 <Plus size={15} />Neuer Eintrag
               </a>
             </div>
-            <DashboardStats dateFrom={dateFrom} dateTo={dateTo} userId={profile.user_id} />
+            <DashboardStats dateFrom={dateFrom} dateTo={dateTo} userId={profile.user_id} role={profile.role} />
           </div>
         </div>
       </main>

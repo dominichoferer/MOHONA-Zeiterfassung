@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { collection, query, where, getDocs } from 'firebase/firestore'
+import { Role } from '@/lib/types'
 import { db } from '@/lib/firebase'
 import { TimeEntry, Company } from '@/lib/types'
 import { formatDuration, todayISO } from '@/lib/utils'
@@ -12,9 +13,10 @@ interface DashboardStatsProps {
   dateFrom: string
   dateTo: string
   userId: string
+  role: Role
 }
 
-export default function DashboardStats({ dateFrom, dateTo, userId }: DashboardStatsProps) {
+export default function DashboardStats({ dateFrom, dateTo, userId, role }: DashboardStatsProps) {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,7 +35,9 @@ export default function DashboardStats({ dateFrom, dateTo, userId }: DashboardSt
       const compMap = new Map(compList.map(c => [c.id, c]))
 
       const entriesSnap = await getDocs(
-        query(collection(db, 'time_entries'), where('user_id', '==', userId))
+        role === 'admin'
+          ? collection(db, 'time_entries')
+          : query(collection(db, 'time_entries'), where('user_id', '==', userId))
       )
       const raw = entriesSnap.docs
         .map(d => {
