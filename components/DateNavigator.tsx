@@ -5,8 +5,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const MONTHS_FULL = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
 
-function todayStr(): string { return new Date().toISOString().split('T')[0] }
-function lastDay(year: number, month: number): string { return new Date(year, month, 0).toISOString().split('T')[0] }
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+function todayStr(): string { return fmtDate(new Date()) }
+function lastDay(year: number, month: number): string { return fmtDate(new Date(year, month, 0)) }
 
 interface DateNavigatorProps {
   onChange: (dateFrom: string, dateTo: string) => void
@@ -33,8 +36,8 @@ export default function DateNavigator({ onChange }: DateNavigatorProps) {
 
   function prevMonth() { if (month === 1) { setMonth(12); setYear(y => y - 1) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setMonth(1); setYear(y => y + 1) } else setMonth(m => m + 1) }
-  function prevDay() { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() - 1); setDay(d.toISOString().split('T')[0]) }
-  function nextDay() { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + 1); setDay(d.toISOString().split('T')[0]) }
+  function prevDay() { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() - 1); setDay(fmtDate(d)) }
+  function nextDay() { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + 1); setDay(fmtDate(d)) }
 
   function goToday() {
     if (mode === 'day') { setDay(todayStr()) }
