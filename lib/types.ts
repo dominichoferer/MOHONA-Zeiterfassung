@@ -23,6 +23,7 @@ export interface Project {
   id: string
   name: string
   company_id: string
+  planned_hours?: number | null
   is_active: boolean
   created_at: string
   company?: Company

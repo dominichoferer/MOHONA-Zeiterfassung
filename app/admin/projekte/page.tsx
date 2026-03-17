@@ -36,15 +36,17 @@ function ProjekteContent({ profile }: { profile: Profile }) {
   const [filterName, setFilterName] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', company_id: '' })
+  const [form, setForm] = useState({ name: '', company_id: '', planned_hours: '' })
   const [saving, setSaving] = useState(false)
+  const [usedMinutes, setUsedMinutes] = useState<Map<string, number>>(new Map())
   void profile
 
   useEffect(() => {
     Promise.all([
       getDocs(collection(db, 'companies')),
       getDocs(collection(db, 'projects')),
-    ]).then(([c, p]) => {
+      getDocs(collection(db, 'time_entries')),
+    ]).then(([c, p, t]) => {
       const compList = c.docs.map(d => ({ id: d.id, ...d.data() } as Company)).filter(c => c.is_active).sort((a, b) => a.name.localeCompare(b.name))
       const compMap = new Map(compList.map(c => [c.id, c]))
       setCompanies(compList)
@@ -52,6 +54,12 @@ function ProjekteContent({ profile }: { profile: Profile }) {
         const data = d.data()
         return { id: d.id, ...data, company: compMap.get(data.company_id) } as Project
       }))
+      const minuteMap = new Map<string, number>()
+      t.docs.forEach(d => {
+        const data = d.data()
+        if (data.project_id) minuteMap.set(data.project_id, (minuteMap.get(data.project_id) ?? 0) + (data.duration_minutes ?? 0))
+      })
+      setUsedMinutes(minuteMap)
       setLoading(false)
     })
   }, [])
@@ -63,19 +71,21 @@ function ProjekteContent({ profile }: { profile: Profile }) {
   async function handleAdd() {
     if (!form.name.trim() || !form.company_id) return
     setSaving(true)
-    const ref = await addDoc(collection(db, 'projects'), { name: form.name.trim(), company_id: form.company_id, is_active: true, created_at: new Date().toISOString() })
+    const ph = form.planned_hours ? Number(form.planned_hours) : null
+    const ref = await addDoc(collection(db, 'projects'), { name: form.name.trim(), company_id: form.company_id, planned_hours: ph, is_active: true, created_at: new Date().toISOString() })
     const company = companies.find(c => c.id === form.company_id)
-    setProjects(prev => [...prev, { id: ref.id, name: form.name.trim(), company_id: form.company_id, is_active: true, created_at: new Date().toISOString(), company }].sort((a, b) => a.name.localeCompare(b.name)))
-    setForm({ name: '', company_id: '' })
+    setProjects(prev => [...prev, { id: ref.id, name: form.name.trim(), company_id: form.company_id, planned_hours: ph, is_active: true, created_at: new Date().toISOString(), company }].sort((a, b) => a.name.localeCompare(b.name)))
+    setForm({ name: '', company_id: '', planned_hours: '' })
     setShowAdd(false)
     setSaving(false)
   }
 
   async function handleUpdate(id: string) {
     setSaving(true)
-    await updateDoc(doc(db, 'projects', id), { name: form.name, company_id: form.company_id })
+    const ph = form.planned_hours ? Number(form.planned_hours) : null
+    await updateDoc(doc(db, 'projects', id), { name: form.name, company_id: form.company_id, planned_hours: ph })
     const company = companies.find(c => c.id === form.company_id)
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, name: form.name, company_id: form.company_id, company } : p))
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, name: form.name, company_id: form.company_id, planned_hours: ph, company } : p))
     setEditId(null)
     setSaving(false)
   }
@@ -94,7 +104,7 @@ function ProjekteContent({ profile }: { profile: Profile }) {
           </h1>
           <p className="text-sm text-[#8a7f72] mt-1 font-light">Verwalte Projekte je Firma.</p>
         </div>
-        <button onClick={() => { setShowAdd(true); setEditId(null); setForm({ name: '', company_id: '' }) }}
+        <button onClick={() => { setShowAdd(true); setEditId(null); setForm({ name: '', company_id: '', planned_hours: '' }) }}
           className="flex items-center gap-2 bg-[#2c2316] hover:bg-[#3d3220] text-white text-sm font-medium px-4 py-2.5 rounded-lg">
           <Plus size={15} />Neues Projekt
         </button>
@@ -128,7 +138,7 @@ function ProjekteContent({ profile }: { profile: Profile }) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#e5dfd5] bg-[#faf8f5]">
-                {['Projekt', 'Firma', 'Status', ''].map((h, i) => (
+                {['Projekt', 'Firma', 'Stunden', 'Status', ''].map((h, i) => (
                   <th key={i} className="text-left text-xs text-[#8a7f72] px-4 py-3 uppercase tracking-wide font-normal">{h}</th>
                 ))}
               </tr>
@@ -139,6 +149,25 @@ function ProjekteContent({ profile }: { profile: Profile }) {
                   <tr key={project.id} className="hover:bg-[#faf8f5] group">
                     <td className="px-4 py-3 text-sm text-[#1e1813] font-light">{project.name}</td>
                     <td className="px-4 py-3"><CompanyBadge company={project.company} size="sm" /></td>
+                    <td className="px-4 py-3 min-w-[140px]">
+                      {project.planned_hours ? (() => {
+                        const used = (usedMinutes.get(project.id) ?? 0) / 60
+                        const pct = Math.min(used / project.planned_hours * 100, 100)
+                        const over = used > project.planned_hours
+                        return (
+                          <div>
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className={`font-light ${over ? 'text-red-500' : 'text-[#1e1813]'}`}>{Math.round(used * 10) / 10}h</span>
+                              <span className="text-[#b5a99a] font-light">/ {project.planned_hours}h</span>
+                            </div>
+                            <div className="h-1.5 bg-[#f5f0ea] rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all"
+                                style={{ width: `${pct}%`, backgroundColor: over ? '#dc2626' : pct > 80 ? '#d97706' : '#16a34a' }} />
+                            </div>
+                          </div>
+                        )
+                      })() : <span className="text-xs text-[#e5dfd5]">–</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2 py-1 rounded-full ${project.is_active ? 'bg-green-50 text-green-700' : 'bg-[#f5f0ea] text-[#8a7f72]'}`}>
                         {project.is_active ? 'Aktiv' : 'Inaktiv'}
@@ -146,14 +175,14 @@ function ProjekteContent({ profile }: { profile: Profile }) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                        <button onClick={() => { setForm({ name: project.name, company_id: project.company_id }); setEditId(project.id); setShowAdd(false) }} className="p-1.5 text-[#b5a99a] hover:text-[#2c2316] hover:bg-[#f0ebe3] rounded-lg"><Pencil size={14} /></button>
+                        <button onClick={() => { setForm({ name: project.name, company_id: project.company_id, planned_hours: project.planned_hours?.toString() ?? '' }); setEditId(project.id); setShowAdd(false) }} className="p-1.5 text-[#b5a99a] hover:text-[#2c2316] hover:bg-[#f0ebe3] rounded-lg"><Pencil size={14} /></button>
                         <button onClick={() => toggleActive(project)} className="p-1.5 text-[#b5a99a] hover:text-[#1e1813] hover:bg-[#faf8f5] rounded-lg">{project.is_active ? <X size={14} /> : <Check size={14} />}</button>
                       </div>
                     </td>
                   </tr>
                   {editId === project.id && (
                     <tr key={`edit-${project.id}`}>
-                      <td colSpan={4} className="px-4 py-4 bg-[#faf8f5] border-b border-[#e5dfd5]">
+                      <td colSpan={5} className="px-4 py-4 bg-[#faf8f5] border-b border-[#e5dfd5]">
                         <ProjectForm form={form} setForm={setForm} companies={companies} onSave={() => handleUpdate(project.id)} onCancel={() => setEditId(null)} saving={saving} />
                       </td>
                     </tr>
@@ -169,13 +198,13 @@ function ProjekteContent({ profile }: { profile: Profile }) {
 }
 
 function ProjectForm({ form, setForm, companies, onSave, onCancel, saving }: {
-  form: { name: string; company_id: string }
-  setForm: (f: { name: string; company_id: string }) => void
+  form: { name: string; company_id: string; planned_hours: string }
+  setForm: (f: { name: string; company_id: string; planned_hours: string }) => void
   companies: Company[]; onSave: () => void; onCancel: () => void; saving: boolean
 }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Projektname</label>
           <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="z.B. Website Redesign" className={inputClass} />
@@ -183,6 +212,10 @@ function ProjectForm({ form, setForm, companies, onSave, onCancel, saving }: {
         <div>
           <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Firma</label>
           <CompanySelect companies={companies} value={form.company_id} onChange={id => setForm({ ...form, company_id: id })} />
+        </div>
+        <div>
+          <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Geplante Stunden <span className="text-[#b5a99a] normal-case">(optional)</span></label>
+          <input type="number" min="0" step="0.5" value={form.planned_hours} onChange={e => setForm({ ...form, planned_hours: e.target.value })} placeholder="z.B. 40" className={inputClass} />
         </div>
       </div>
       <div className="flex gap-3">
