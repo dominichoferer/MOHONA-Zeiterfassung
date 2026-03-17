@@ -169,7 +169,7 @@ export default function EntryList({ profile }: EntryListProps) {
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full border border-[#e5dfd5]">
-            <h3 className="text-xl text-[#1e1813] mb-2" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Eintrag löschen?</h3>
+            <h3 className="text-xl text-[#1e1813] mb-2" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>Eintrag löschen?</h3>
             <p className="text-sm text-[#8a7f72] mb-6 font-light">Diese Aktion kann nicht rückgängig gemacht werden.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 text-sm text-[#8a7f72] border border-[#e5dfd5] rounded-lg font-light">Abbrechen</button>

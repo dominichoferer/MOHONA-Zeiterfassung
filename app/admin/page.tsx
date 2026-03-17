@@ -46,7 +46,7 @@ function AdminContent({ profile }: { profile: Profile }) {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-10 pt-4">
-        <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>
+        <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>
           Admin-Bereich
         </h1>
         <p className="text-sm text-[#8a7f72] mt-1 font-light">Willkommen, {profile.staff_name}.</p>
@@ -58,7 +58,7 @@ function AdminContent({ profile }: { profile: Profile }) {
               <div className="w-10 h-10 bg-[#f0ebe3] rounded-xl flex items-center justify-center group-hover:bg-[#2c2316] transition-colors">
                 <Icon size={18} className="text-[#2c2316] group-hover:text-white transition-colors" />
               </div>
-              <span className="text-3xl font-light text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}>{value}</span>
+              <span className="text-3xl font-light text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif' }}>{value}</span>
             </div>
             <p className="text-sm font-medium text-[#1e1813]">{label}</p>
             <p className="text-xs text-[#8a7f72] mt-0.5 font-light">{desc}</p>
@@ -66,7 +66,7 @@ function AdminContent({ profile }: { profile: Profile }) {
         ))}
       </div>
       <div className="bg-white rounded-xl border border-[#e5dfd5] p-5">
-        <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 400 }}>Schnellzugriff</h3>
+        <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 400 }}>Schnellzugriff</h3>
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Neue Firma anlegen', href: '/admin/firmen' },

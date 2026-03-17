@@ -92,7 +92,7 @@ function FirmenContent({ profile }: { profile: Profile }) {
     <div className="max-w-3xl mx-auto">
       <div className="flex items-end justify-between mb-8 pt-4">
         <div>
-          <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>
+          <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>
             Firmen & Kunden
           </h1>
           <p className="text-sm text-[#8a7f72] mt-1 font-light">Verwalte alle Firmen und ihre Farben.</p>
@@ -107,7 +107,7 @@ function FirmenContent({ profile }: { profile: Profile }) {
 
       {showAdd && (
         <div className="bg-white rounded-xl border-2 border-[#2c2316] p-5 mb-4">
-          <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}>Neue Firma anlegen</h3>
+          <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Dazzle Unicase, sans-serif' }}>Neue Firma anlegen</h3>
           <CompanyForm form={form} setForm={setForm} onSave={handleAdd} onCancel={() => setShowAdd(false)} saving={saving} />
         </div>
       )}
@@ -161,7 +161,7 @@ function FirmenContent({ profile }: { profile: Profile }) {
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full border border-[#e5dfd5]">
-            <h3 className="text-xl text-[#1e1813] mb-2" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Firma löschen?</h3>
+            <h3 className="text-xl text-[#1e1813] mb-2" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>Firma löschen?</h3>
             <p className="text-sm text-[#8a7f72] mb-1 font-light">
               <strong className="text-[#1e1813]">{companies.find(c => c.id === deleteConfirm)?.name}</strong> wird permanent gelöscht.
             </p>

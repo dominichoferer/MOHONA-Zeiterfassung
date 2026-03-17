@@ -41,7 +41,7 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-[460px] bg-[#2c2316] flex-col justify-between p-10">
         <div>
           <img src="/logo-mohona-white.svg" alt="MOHONA" className="h-8 w-auto mb-14" />
-          <h1 className="text-white leading-tight mb-5" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '42px', fontWeight: 300 }}>
+          <h1 className="text-white leading-tight mb-5" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontSize: '42px', fontWeight: 300 }}>
             Zeit erfassen.<br />
             <span className="text-white/40">Einfach & präzise.</span>
           </h1>
@@ -72,7 +72,7 @@ export default function LoginPage() {
             <img src="/logo-mohona-white.svg" alt="MOHONA" className="h-8 w-auto invert" />
           </div>
 
-          <h2 className="mb-1 text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '32px', fontWeight: 300 }}>
+          <h2 className="mb-1 text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontSize: '32px', fontWeight: 300 }}>
             Anmelden
           </h2>
           <p className="text-sm text-[#8a7f72] mb-8 font-light">Melde dich mit deinem Team-Account an.</p>

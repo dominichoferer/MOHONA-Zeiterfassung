@@ -113,7 +113,7 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
     return (
       <div className="bg-white rounded-xl border border-[#e5dfd5] p-12 flex flex-col items-center justify-center text-center">
         <CheckCircle2 size={40} className="text-[#16a34a] mb-4" />
-        <h3 className="text-2xl text-[#1e1813] mb-1" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Gespeichert.</h3>
+        <h3 className="text-2xl text-[#1e1813] mb-1" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>Gespeichert.</h3>
         <p className="text-sm text-[#8a7f72] font-light">Weiterleitung zu deinen Einträgen...</p>
       </div>
     )

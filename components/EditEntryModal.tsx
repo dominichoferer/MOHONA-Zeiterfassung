@@ -65,7 +65,7 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg border border-[#e5dfd5]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5dfd5]">
-          <h2 className="text-xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Eintrag bearbeiten</h2>
+          <h2 className="text-xl text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>Eintrag bearbeiten</h2>
           <button onClick={onClose} className="text-[#b5a99a] hover:text-[#1e1813]"><X size={18} /></button>
         </div>
 

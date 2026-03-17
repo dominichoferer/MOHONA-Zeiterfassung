@@ -23,18 +23,16 @@ function DashboardContent({ profile }: { profile: Profile }) {
       <Navbar profile={profile} />
       <main className="pt-14">
         {/* Hero Header */}
-        <div className="relative w-full h-52 overflow-hidden">
+        <div className="relative w-full overflow-hidden" style={{ height: '450px' }}>
           <img src="/dashboard-header.jpg" alt="" className="w-full h-full object-cover object-center" />
           <div className="absolute inset-0 bg-black/50" />
-          <div className="absolute inset-0 flex items-center px-10">
-            <div>
-              <h1 className="text-5xl text-white" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>
-                Hallo, {profile.staff_name?.split(' ')[0] ?? profile.staff_code ?? 'dort'}.
-              </h1>
-              <p className="text-sm text-white/60 mt-1 font-light">
-                Deine Übersicht für diese{period === 'week' ? ' Woche' : 'n Monat'}.
-              </p>
-            </div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <h1 className="text-6xl text-white" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300, letterSpacing: '0.08em' }}>
+              Hallo, {profile.staff_name?.split(' ')[0] ?? profile.staff_code ?? 'dort'}.
+            </h1>
+            <p className="text-sm text-white/60 mt-3 font-light tracking-wide">
+              Deine Übersicht für diese{period === 'week' ? ' Woche' : 'n Monat'}.
+            </p>
           </div>
         </div>
 

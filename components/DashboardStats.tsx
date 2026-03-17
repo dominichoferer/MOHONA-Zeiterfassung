@@ -87,14 +87,14 @@ export default function DashboardStats({ period, userId }: DashboardStatsProps) 
                 <Icon size={15} className="text-[#2c2316]" />
               </div>
             </div>
-            <p className="text-3xl text-[#1e1813] font-light" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}>{value}</p>
+            <p className="text-3xl text-[#1e1813] font-light" style={{ fontFamily: 'Dazzle Unicase, sans-serif' }}>{value}</p>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-5 gap-4">
         <div className="col-span-3 bg-white rounded-xl border border-[#e5dfd5] p-5">
-          <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 400 }}>Stunden nach Firma</h3>
+          <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 400 }}>Stunden nach Firma</h3>
           {companyStats.length === 0 ? (
             <p className="text-sm text-[#b5a99a] py-4 text-center font-light">Noch keine Einträge in diesem Zeitraum</p>
           ) : (
@@ -116,7 +116,7 @@ export default function DashboardStats({ period, userId }: DashboardStatsProps) 
         </div>
 
         <div className="col-span-2 bg-white rounded-xl border border-[#e5dfd5] p-5">
-          <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 400 }}>Heute</h3>
+          <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 400 }}>Heute</h3>
           {todayEntries.length === 0 ? (
             <p className="text-sm text-[#b5a99a] py-4 text-center font-light">Noch keine Einträge heute</p>
           ) : (

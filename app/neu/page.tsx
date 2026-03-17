@@ -20,7 +20,7 @@ function NeuContent({ profile }: { profile: Profile }) {
       <main className="pt-14 p-8">
         <div className="max-w-3xl mx-auto">
           <div className="mb-8 pt-4">
-            <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>
+            <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>
               Neuer Eintrag
             </h1>
             <p className="text-sm text-[#8a7f72] mt-1 font-light">Erfasse deine Arbeitszeit mit KI-Unterstützung oder manuell.</p>

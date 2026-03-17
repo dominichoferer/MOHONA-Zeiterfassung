@@ -1,5 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap');
 @import "tailwindcss";
+
+@font-face {
+  font-family: 'Dazzle Unicase';
+  src: url('/fonts/dazzle-unicase-light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
 
 @theme {
   --color-brown:        #2c2316;
@@ -15,7 +23,7 @@
   --color-success:      #16a34a;
   --color-danger:       #dc2626;
   --color-warning:      #d97706;
-  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-display: 'Dazzle Unicase', sans-serif;
   --font-sans:    'DM Sans', system-ui, -apple-system, sans-serif;
 }
 
@@ -33,9 +41,9 @@ body {
 }
 
 h1, h2, h3 {
-  font-family: 'Cormorant Garamond', Georgia, serif;
-  font-weight: 400;
-  letter-spacing: 0.01em;
+  font-family: 'Dazzle Unicase', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.05em;
 }
 
 button, a, input, select, textarea {

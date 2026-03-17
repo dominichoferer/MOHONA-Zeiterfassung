@@ -85,7 +85,7 @@ function ProjekteContent({ profile }: { profile: Profile }) {
     <div className="max-w-3xl mx-auto">
       <div className="flex items-end justify-between mb-8 pt-4">
         <div>
-          <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>
+          <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>
             Projekte
           </h1>
           <p className="text-sm text-[#8a7f72] mt-1 font-light">Verwalte Projekte je Firma.</p>
@@ -109,7 +109,7 @@ function ProjekteContent({ profile }: { profile: Profile }) {
 
       {showAdd && (
         <div className="bg-white rounded-xl border-2 border-[#2c2316] p-5 mb-4">
-          <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}>Neues Projekt anlegen</h3>
+          <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Dazzle Unicase, sans-serif' }}>Neues Projekt anlegen</h3>
           <ProjectForm form={form} setForm={setForm} companies={companies} onSave={handleAdd} onCancel={() => setShowAdd(false)} saving={saving} />
         </div>
       )}

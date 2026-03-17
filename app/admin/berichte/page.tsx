@@ -83,7 +83,7 @@ function BerichteContent({ profile }: { profile: Profile }) {
     <div className="max-w-5xl mx-auto">
       <div className="flex items-end justify-between mb-8 pt-4">
         <div>
-          <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Berichte & Auswertungen</h1>
+          <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>Berichte & Auswertungen</h1>
           <p className="text-sm text-[#8a7f72] mt-1 font-light">Übersicht aller erfassten Zeiten.</p>
         </div>
         <div className="flex items-center gap-2 bg-white border border-[#e5dfd5] rounded-lg px-4 py-2.5">
@@ -105,14 +105,14 @@ function BerichteContent({ profile }: { profile: Profile }) {
             ].map(({ label, value }) => (
               <div key={label} className="bg-white rounded-xl border border-[#e5dfd5] p-5">
                 <p className="text-xs text-[#8a7f72] uppercase tracking-wide mb-2 font-normal">{label}</p>
-                <p className="text-3xl text-[#1e1813] font-light" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}>{value}</p>
+                <p className="text-3xl text-[#1e1813] font-light" style={{ fontFamily: 'Dazzle Unicase, sans-serif' }}>{value}</p>
               </div>
             ))}
           </div>
 
           <div className="grid grid-cols-2 gap-6">
             <div className="bg-white rounded-xl border border-[#e5dfd5] p-5">
-              <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 400 }}>Stunden nach Firma</h3>
+              <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 400 }}>Stunden nach Firma</h3>
               {byCompany.length === 0 ? <p className="text-sm text-[#b5a99a] text-center py-8 font-light">Keine Daten</p> : (
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={byCompany} layout="vertical">
@@ -127,7 +127,7 @@ function BerichteContent({ profile }: { profile: Profile }) {
             </div>
 
             <div className="bg-white rounded-xl border border-[#e5dfd5] p-5">
-              <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 400 }}>Stunden nach Mitarbeiter</h3>
+              <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 400 }}>Stunden nach Mitarbeiter</h3>
               {byStaff.length === 0 ? <p className="text-sm text-[#b5a99a] text-center py-8 font-light">Keine Daten</p> : (
                 <div className="space-y-3">
                   {byStaff.map(({ name, minutes }) => (
@@ -148,7 +148,7 @@ function BerichteContent({ profile }: { profile: Profile }) {
 
           {byMonth.length > 1 && (
             <div className="bg-white rounded-xl border border-[#e5dfd5] p-5">
-              <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 400 }}>Monatlicher Verlauf</h3>
+              <h3 className="text-base text-[#1e1813] mb-4" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 400 }}>Monatlicher Verlauf</h3>
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={byMonth}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f5f0ea" vertical={false} />
@@ -163,7 +163,7 @@ function BerichteContent({ profile }: { profile: Profile }) {
 
           <div className="bg-white rounded-xl border border-[#e5dfd5] overflow-hidden">
             <div className="px-5 py-4 border-b border-[#e5dfd5] flex items-center justify-between">
-              <h3 className="text-base text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 400 }}>Alle Einträge im Zeitraum</h3>
+              <h3 className="text-base text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 400 }}>Alle Einträge im Zeitraum</h3>
               <span className="text-xs text-[#8a7f72] font-light">{entries.length} Einträge</span>
             </div>
             <table className="w-full">

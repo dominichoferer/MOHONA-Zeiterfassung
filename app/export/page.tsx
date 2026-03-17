@@ -143,14 +143,14 @@ ${entries.map(e => `<tr>
       <main className="pt-14 p-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8 pt-4">
-            <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>
+            <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>
               Export
             </h1>
             <p className="text-sm text-[#8a7f72] mt-1 font-light">Exportiere deine Einträge als CSV oder PDF.</p>
           </div>
 
           <div className="bg-white rounded-xl border border-[#e5dfd5] p-5 mb-6">
-            <h3 className="text-sm font-medium text-[#1e1813] mb-4 uppercase tracking-wider" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '16px', fontWeight: 400 }}>Filter</h3>
+            <h3 className="text-sm font-medium text-[#1e1813] mb-4 uppercase tracking-wider" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontSize: '16px', fontWeight: 400 }}>Filter</h3>
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Firma</label>

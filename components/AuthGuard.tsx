@@ -75,7 +75,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
       <div className="min-h-screen flex items-center justify-center bg-[#faf8f5]">
         <div className="bg-white rounded-xl border border-[#e5dfd5] shadow-sm p-8 w-full max-w-sm">
           <img src="/logo-mohona-white.svg" alt="MOHONA" className="h-6 w-auto mb-8 invert opacity-80" />
-          <h2 className="text-2xl text-[#1e1813] mb-1" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Willkommen.</h2>
+          <h2 className="text-2xl text-[#1e1813] mb-1" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>Willkommen.</h2>
           <p className="text-sm text-[#8a7f72] mb-6 font-light">Wie lautet dein Name?</p>
           <input
             type="text"

@@ -20,7 +20,7 @@ export default function AdminGuard({ profile, children }: AdminGuardProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h2 className="text-2xl text-[#1e1813] mb-2" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Kein Zugriff</h2>
+          <h2 className="text-2xl text-[#1e1813] mb-2" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>Kein Zugriff</h2>
           <p className="text-sm text-[#8a7f72] mb-6 font-light">Du hast keine Berechtigung für den Admin-Bereich.</p>
           <button
             onClick={() => router.push('/dashboard')}
