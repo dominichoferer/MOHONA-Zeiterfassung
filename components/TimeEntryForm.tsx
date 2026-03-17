@@ -8,6 +8,7 @@ import { Company, Project, Profile } from '@/lib/types'
 import { DURATION_OPTIONS } from '@/lib/config'
 import { todayISO, formatDuration, getClosestDuration } from '@/lib/utils'
 import { Sparkles, PenLine, CheckCircle2, ChevronDown } from 'lucide-react'
+import CompanySelect from './CompanySelect'
 
 interface TimeEntryFormProps {
   profile: Profile
@@ -22,6 +23,7 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
   const [projects, setProjects] = useState<Project[]>([])
 
   const [description, setDescription] = useState('')
+  const [notes, setNotes] = useState('')
   const [companyId, setCompanyId] = useState('')
   const [projectId, setProjectId] = useState('')
   const [durationMinutes, setDurationMinutes] = useState(60)
@@ -74,6 +76,7 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
       const data = await res.json()
       if (data.error) { setError(data.error); return }
       setDescription(data.description)
+      setNotes(data.notes ?? '')
       if (data.company_id) setCompanyId(data.company_id)
       setDurationMinutes(getClosestDuration(data.duration_minutes).minutes)
       setAiConfidence(data.confidence)
@@ -96,6 +99,7 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
         company_id: companyId,
         project_id: projectId || null,
         description,
+        notes: notes || null,
         duration_minutes: durationMinutes,
         date,
         created_at: new Date().toISOString(),
@@ -163,25 +167,23 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
         )}
 
         <div>
-          <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Beschreibung *</label>
+          <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Headline *</label>
           <input type="text" value={description} onChange={e => setDescription(e.target.value)}
-            placeholder="Was wurde gemacht?" className={inputClass} />
+            placeholder="Kurze Bezeichnung der Tätigkeit" className={inputClass} />
+        </div>
+
+        <div>
+          <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Beschreibung <span className="text-[#b5a99a] normal-case">(optional)</span></label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)}
+            placeholder="Ausführlichere Beschreibung was gemacht wurde..."
+            rows={3}
+            className="w-full border border-[#e5dfd5] rounded-lg px-4 py-3 text-sm text-[#1e1813] placeholder-[#b5a99a] focus:outline-none focus:ring-2 focus:ring-[#2c2316] focus:border-transparent font-light resize-none" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Firma / Kunde *</label>
-            <div className="flex flex-wrap gap-2">
-              {companies.map(c => (
-                <button key={c.id} onClick={() => setCompanyId(companyId === c.id ? '' : c.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-all ${
-                    companyId === c.id ? 'border-transparent shadow-sm' : 'border-[#e5dfd5] text-[#8a7f72] bg-white hover:border-[#b5a99a]'
-                  }`}
-                  style={companyId === c.id ? { backgroundColor: c.color, color: c.text_color } : {}}>
-                  {c.name}
-                </button>
-              ))}
-            </div>
+            <CompanySelect companies={companies} value={companyId} onChange={setCompanyId} />
           </div>
           <div>
             <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">

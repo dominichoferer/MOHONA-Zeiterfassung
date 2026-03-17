@@ -35,6 +35,7 @@ export interface TimeEntry {
   company_id: string | null
   project_id: string | null
   description: string
+  notes: string | null
   duration_minutes: number
   date: string
   created_at: string

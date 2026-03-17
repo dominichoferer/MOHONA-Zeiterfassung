@@ -23,19 +23,20 @@ export async function POST(req: NextRequest) {
 Verfügbare Firmen/Kunden:
 ${companyList || '(keine Firmen angegeben)'}
 
-Extrahiere aus dem Input:
-- description: Kurze, klare Beschreibung der Tätigkeit (auf Deutsch, max. 100 Zeichen)
+Extrahiere aus dem Input folgende Felder:
+- description: Kurze, prägnante Headline der Tätigkeit (auf Deutsch, max. 60 Zeichen, keine Zeitangabe)
+- notes: Ausführlichere Beschreibung der Tätigkeit (auf Deutsch, 1-2 Sätze, was genau gemacht wurde). Falls keine Details bekannt, formuliere sinnvoll auf Basis der Headline.
 - company_id: Die UUID der passenden Firma oder null wenn unklar
 - duration_minutes: Dauer in Minuten (Zahl)
 - confidence: Wie sicher du dir bist (0 bis 1)
 
 Antworte NUR mit einem JSON-Objekt, kein Markdown, keine Erklärung.
-Beispiel: {"description":"Newsletter erstellt","company_id":"abc-123","duration_minutes":60,"confidence":0.9}`
+Beispiel: {"description":"Newsletter erstellt","notes":"Monatlichen Newsletter für den Kundenstamm verfasst und layoutet.","company_id":"abc-123","duration_minutes":60,"confidence":0.9}`
 
   try {
     const message = await client.messages.create({
       model: 'claude-haiku-4-5',
-      max_tokens: 300,
+      max_tokens: 400,
       messages: [{ role: 'user', content: input }],
       system: systemPrompt,
     })
@@ -54,6 +55,7 @@ Beispiel: {"description":"Newsletter erstellt","company_id":"abc-123","duration_
 
     return NextResponse.json({
       description: result.description ?? '',
+      notes: result.notes ?? '',
       company_id: result.company_id ?? null,
       duration_minutes: Number(result.duration_minutes) || 60,
       confidence: Number(result.confidence) || 0.5,

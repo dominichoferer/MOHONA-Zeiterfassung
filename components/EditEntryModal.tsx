@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase'
 import { TimeEntry, Company, Project } from '@/lib/types'
 import { DURATION_OPTIONS } from '@/lib/config'
 import { X, ChevronDown } from 'lucide-react'
+import CompanySelect from './CompanySelect'
 
 interface EditEntryModalProps {
   entry: TimeEntry
@@ -19,6 +20,7 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
   const [companies, setCompanies] = useState<Company[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [description, setDescription] = useState(entry.description)
+  const [notes, setNotes] = useState(entry.notes ?? '')
   const [companyId, setCompanyId] = useState(entry.company_id ?? '')
   const [projectId, setProjectId] = useState(entry.project_id ?? '')
   const [durationMinutes, setDurationMinutes] = useState(entry.duration_minutes)
@@ -50,7 +52,7 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
     setSaving(true)
     setError('')
     try {
-      const updates = { description, company_id: companyId, project_id: projectId || null, duration_minutes: durationMinutes, date, updated_at: new Date().toISOString() }
+      const updates = { description, notes: notes || null, company_id: companyId, project_id: projectId || null, duration_minutes: durationMinutes, date, updated_at: new Date().toISOString() }
       await updateDoc(doc(db, 'time_entries', entry.id), updates)
       const companyData = companies.find(c => c.id === companyId)
       const projectData = projects.find(p => p.id === projectId)
@@ -71,23 +73,21 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
 
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Beschreibung</label>
+            <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Headline</label>
             <input type="text" value={description} onChange={e => setDescription(e.target.value)} className={inputClass} />
           </div>
 
           <div>
+            <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Beschreibung <span className="text-[#b5a99a] normal-case">(optional)</span></label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)}
+              placeholder="Ausführlichere Beschreibung..."
+              rows={3}
+              className="w-full border border-[#e5dfd5] rounded-lg px-4 py-3 text-sm text-[#1e1813] placeholder-[#b5a99a] focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light resize-none" />
+          </div>
+
+          <div>
             <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Firma / Kunde</label>
-            <div className="flex flex-wrap gap-2">
-              {companies.map(c => (
-                <button key={c.id} onClick={() => { setCompanyId(c.id); setProjectId('') }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-all ${
-                    companyId === c.id ? 'border-transparent shadow-sm' : 'border-[#e5dfd5] text-[#8a7f72]'
-                  }`}
-                  style={companyId === c.id ? { backgroundColor: c.color, color: c.text_color } : {}}>
-                  {c.name}
-                </button>
-              ))}
-            </div>
+            <CompanySelect companies={companies} value={companyId} onChange={(id) => { setCompanyId(id); setProjectId('') }} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
