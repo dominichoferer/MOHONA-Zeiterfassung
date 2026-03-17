@@ -9,6 +9,7 @@ import { db } from '@/lib/firebase'
 import { Company, Project, Profile } from '@/lib/types'
 import { Plus, Pencil, X, Check, Search } from 'lucide-react'
 import CompanySelect from '@/components/CompanySelect'
+import DateNavigator from '@/components/DateNavigator'
 import CompanyBadge from '@/components/CompanyBadge'
 
 const inputClass = "w-full border border-[#e5dfd5] rounded-lg px-4 py-2.5 text-sm text-[#1e1813] focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light"
@@ -38,7 +39,10 @@ function ProjekteContent({ profile }: { profile: Profile }) {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', company_id: '', planned_hours: '' })
   const [saving, setSaving] = useState(false)
-  const [usedMinutes, setUsedMinutes] = useState<Map<string, number>>(new Map())
+  const [allEntries, setAllEntries] = useState<{project_id: string; duration_minutes: number; date: string}[]>([])
+  const now = new Date()
+  const [dateFrom, setDateFrom] = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`)
+  const [dateTo, setDateTo] = useState(new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().split('T')[0])
   void profile
 
   useEffect(() => {
@@ -54,15 +58,18 @@ function ProjekteContent({ profile }: { profile: Profile }) {
         const data = d.data()
         return { id: d.id, ...data, company: compMap.get(data.company_id) } as Project
       }))
-      const minuteMap = new Map<string, number>()
-      t.docs.forEach(d => {
+      setAllEntries(t.docs.map(d => {
         const data = d.data()
-        if (data.project_id) minuteMap.set(data.project_id, (minuteMap.get(data.project_id) ?? 0) + (data.duration_minutes ?? 0))
-      })
-      setUsedMinutes(minuteMap)
+        return { project_id: data.project_id ?? '', duration_minutes: data.duration_minutes ?? 0, date: data.date ?? '' }
+      }).filter(e => e.project_id))
       setLoading(false)
     })
   }, [])
+
+  const usedMinutes = new Map<string, number>()
+  allEntries.filter(e => e.date >= dateFrom && e.date <= dateTo).forEach(e => {
+    usedMinutes.set(e.project_id, (usedMinutes.get(e.project_id) ?? 0) + e.duration_minutes)
+  })
 
   const filtered = projects
     .filter(p => !filterCompany || p.company_id === filterCompany)
@@ -110,7 +117,8 @@ function ProjekteContent({ profile }: { profile: Profile }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#e5dfd5] p-4 mb-4 flex items-center gap-3">
+      <div className="bg-white rounded-xl border border-[#e5dfd5] p-4 mb-4 flex items-center gap-3 flex-wrap">
+        <DateNavigator onChange={(from, to) => { setDateFrom(from); setDateTo(to) }} />
         <div className="w-52">
           <CompanySelect companies={companies} value={filterCompany} onChange={setFilterCompany} placeholder="Alle Firmen" />
         </div>

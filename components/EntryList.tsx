@@ -5,22 +5,21 @@ import { collection, getDocs, deleteDoc, doc, query, where } from 'firebase/fire
 import { db } from '@/lib/firebase'
 import { TimeEntry, Company, Profile } from '@/lib/types'
 import { formatDuration, formatDateShort } from '@/lib/utils'
-import { Pencil, Trash2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { Pencil, Trash2, ChevronDown, ChevronUp, X } from 'lucide-react'
 import CompanyBadge from './CompanyBadge'
 import CompanySelect from './CompanySelect'
+import DateNavigator from './DateNavigator'
 import EditEntryModal from './EditEntryModal'
-
-const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
-
-function lastDayOfMonth(year: number, month: number): string {
-  return new Date(year, month, 0).toISOString().split('T')[0]
-}
 
 interface EntryListProps {
   profile: Profile
 }
 
 export default function EntryList({ profile }: EntryListProps) {
+  const now = new Date()
+  const initFrom = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  const initTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,27 +27,11 @@ export default function EntryList({ profile }: EntryListProps) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
-
-  const now = new Date()
-  const [year, setYear] = useState(now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth() + 1)
+  const [dateFrom, setDateFrom] = useState(initFrom)
+  const [dateTo, setDateTo] = useState(initTo)
   const [filterCompany, setFilterCompany] = useState('')
 
   const isAdmin = profile.role === 'admin'
-
-  const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`
-  const dateTo = lastDayOfMonth(year, month)
-
-  function prevMonth() {
-    if (month === 1) { setMonth(12); setYear(y => y - 1) }
-    else setMonth(m => m - 1)
-  }
-  function nextMonth() {
-    if (month === 12) { setMonth(1); setYear(y => y + 1) }
-    else setMonth(m => m + 1)
-  }
-
-  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i)
 
   useEffect(() => {
     getDocs(collection(db, 'companies')).then(snap => {
@@ -116,21 +99,8 @@ export default function EntryList({ profile }: EntryListProps) {
   return (
     <div>
       <div className="bg-white rounded-xl border border-[#e5dfd5] p-4 mb-4 flex items-center gap-3 flex-wrap">
-        {/* Month navigator */}
-        <div className="flex items-center gap-1 border border-[#e5dfd5] rounded-lg px-2 py-1.5">
-          <button onClick={prevMonth} className="p-0.5 text-[#8a7f72] hover:text-[#1e1813]"><ChevronLeft size={15} /></button>
-          <select value={month} onChange={e => setMonth(Number(e.target.value))}
-            className="text-sm text-[#1e1813] focus:outline-none font-light bg-transparent cursor-pointer">
-            {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
-          <select value={year} onChange={e => setYear(Number(e.target.value))}
-            className="text-sm text-[#1e1813] focus:outline-none font-light bg-transparent cursor-pointer">
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <button onClick={nextMonth} className="p-0.5 text-[#8a7f72] hover:text-[#1e1813]"><ChevronRight size={15} /></button>
-        </div>
+        <DateNavigator onChange={(from, to) => { setDateFrom(from); setDateTo(to) }} />
 
-        {/* Company filter */}
         <div className="w-48">
           <CompanySelect companies={companies} value={filterCompany} onChange={setFilterCompany} placeholder="Alle Firmen" />
         </div>
