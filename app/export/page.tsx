@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import AuthGuard from '@/components/AuthGuard'
 import Navbar from '@/components/Navbar'
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
+import { collection, getDocs, query, where } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
-import { Company, TimeEntry, Profile } from '@/lib/types'
+import { Company, Project, TimeEntry, Profile } from '@/lib/types'
 import { formatDuration, startOfMonthISO } from '@/lib/utils'
 import { Download, FileText, Table } from 'lucide-react'
+import CompanySelect from '@/components/CompanySelect'
 
 export default function ExportPage() {
   return (
@@ -19,7 +20,9 @@ export default function ExportPage() {
 
 function ExportContent({ profile }: { profile: Profile }) {
   const [companies, setCompanies] = useState<Company[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [filterCompany, setFilterCompany] = useState('')
+  const [filterProject, setFilterProject] = useState('')
   const [dateFrom, setDateFrom] = useState(startOfMonthISO())
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0])
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null)
@@ -27,28 +30,39 @@ function ExportContent({ profile }: { profile: Profile }) {
   const [loadingPreview, setLoadingPreview] = useState(false)
 
   useEffect(() => {
-    getDocs(query(collection(db, 'companies'), where('is_active', '==', true), orderBy('name')))
-      .then(snap => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company))))
+    getDocs(collection(db, 'companies')).then(snap => {
+      setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company))
+        .filter(c => c.is_active).sort((a, b) => a.name.localeCompare(b.name)))
+    })
+    getDocs(collection(db, 'projects')).then(snap => {
+      setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as Project))
+        .filter(p => p.is_active).sort((a, b) => a.name.localeCompare(b.name)))
+    })
   }, [])
 
-  useEffect(() => { loadPreview() }, [filterCompany, dateFrom, dateTo])
+  useEffect(() => { loadPreview() }, [filterCompany, filterProject, dateFrom, dateTo])
+
+  // Reset project filter when company changes
+  useEffect(() => { setFilterProject('') }, [filterCompany])
 
   async function fetchEntries(): Promise<TimeEntry[]> {
     const uid = auth.currentUser?.uid
-    const constraints: Parameters<typeof query>[1][] = [
-      where('date', '>=', dateFrom),
-      where('date', '<=', dateTo),
-      orderBy('date', 'desc'),
-    ]
-    if (filterCompany) constraints.push(where('company_id', '==', filterCompany))
-    if (profile.role !== 'admin' && uid) constraints.push(where('user_id', '==', uid))
-
-    const snap = await getDocs(query(collection(db, 'time_entries'), ...constraints))
+    const snap = await getDocs(
+      profile.role !== 'admin' && uid
+        ? query(collection(db, 'time_entries'), where('user_id', '==', uid))
+        : collection(db, 'time_entries')
+    )
     const compMap = new Map(companies.map(c => [c.id, c]))
-    return snap.docs.map(d => {
-      const data = d.data()
-      return { id: d.id, ...data, company: compMap.get(data.company_id) } as TimeEntry
-    })
+    const projMap = new Map(projects.map(p => [p.id, p]))
+    return snap.docs
+      .map(d => {
+        const data = d.data()
+        return { id: d.id, ...data, company: compMap.get(data.company_id), project: projMap.get(data.project_id) } as TimeEntry
+      })
+      .filter(e => e.date >= dateFrom && e.date <= dateTo)
+      .filter(e => !filterCompany || e.company_id === filterCompany)
+      .filter(e => !filterProject || e.project_id === filterProject)
+      .sort((a, b) => b.date.localeCompare(a.date))
   }
 
   async function loadPreview() {
@@ -151,13 +165,19 @@ ${entries.map(e => `<tr>
 
           <div className="bg-white rounded-xl border border-[#e5dfd5] p-5 mb-6">
             <h3 className="text-sm font-medium text-[#1e1813] mb-4 uppercase tracking-wider" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontSize: '16px', fontWeight: 400 }}>Filter</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Firma</label>
-                <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className={inputClass}>
-                  <option value="">Alle Firmen</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <CompanySelect companies={companies} value={filterCompany} onChange={setFilterCompany} placeholder="Alle Firmen" />
+              </div>
+              <div>
+                <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Projekt</label>
+                <CompanySelect
+                  companies={(filterCompany ? projects.filter(p => p.company_id === filterCompany) : projects).map(p => ({ ...p, color: '#e5dfd5', text_color: '#1e1813' }))}
+                  value={filterProject}
+                  onChange={setFilterProject}
+                  placeholder="Alle Projekte"
+                />
               </div>
               <div>
                 <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Von</label>
