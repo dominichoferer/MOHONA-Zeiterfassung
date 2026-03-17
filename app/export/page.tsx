@@ -7,7 +7,8 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 import { Company, Project, TimeEntry, Profile } from '@/lib/types'
 import { formatDuration, startOfMonthISO } from '@/lib/utils'
-import { Download, FileText, Table } from 'lucide-react'
+import { Download, FileText, FileSpreadsheet } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import CompanySelect from '@/components/CompanySelect'
 
 export default function ExportPage() {
@@ -25,7 +26,7 @@ function ExportContent({ profile }: { profile: Profile }) {
   const [filterProject, setFilterProject] = useState('')
   const [dateFrom, setDateFrom] = useState(startOfMonthISO())
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0])
-  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null)
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
   const [preview, setPreview] = useState<TimeEntry[]>([])
   const [loadingPreview, setLoadingPreview] = useState(false)
 
@@ -72,28 +73,23 @@ function ExportContent({ profile }: { profile: Profile }) {
     setLoadingPreview(false)
   }
 
-  async function handleCSVExport() {
-    setExporting('csv')
+  async function handleExcelExport() {
+    setExporting('excel')
     const entries = await fetchEntries()
-    const headers = ['Datum', 'Firma', 'Projekt', 'Überschrift', 'Beschreibung', 'Dauer (Min)', 'Dauer', 'Mitarbeiter']
-    const rows = entries.map(e => [
-      e.date,
-      `"${(e.company?.name ?? '').replace(/"/g, '""')}"`,
-      `"${((e.project as {name?: string})?.name ?? '').replace(/"/g, '""')}"`,
-      `"${(e.description ?? '').replace(/"/g, '""')}"`,
-      `"${(e.notes ?? '').replace(/"/g, '""')}"`,
-      e.duration_minutes,
-      formatDuration(e.duration_minutes),
-      e.staff_code,
-    ])
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `zeiterfassung_${dateFrom}_${dateTo}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    const rows = entries.map(e => ({
+      Datum: e.date,
+      Firma: e.company?.name ?? '',
+      Projekt: (e.project as {name?: string})?.name ?? '',
+      Überschrift: e.description ?? '',
+      Beschreibung: e.notes ?? '',
+      'Dauer (Min)': e.duration_minutes,
+      Dauer: formatDuration(e.duration_minutes),
+      Mitarbeiter: e.staff_code,
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Zeiterfassung')
+    XLSX.writeFile(wb, `zeiterfassung_${dateFrom}_${dateTo}.xlsx`)
     setExporting(null)
   }
 
@@ -111,12 +107,12 @@ function ExportContent({ profile }: { profile: Profile }) {
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400&display=swap');
 * { margin:0;padding:0;box-sizing:border-box; }
 body { font-family:'DM Sans',Arial,sans-serif;font-weight:300;color:#1e1813;background:#faf8f5; }
-.hero { background:#2c2316;padding:40px 48px;display:flex;justify-content:space-between;align-items:flex-end; }
-.hero-left img { height:28px;margin-bottom:16px;display:block; }
+.hero { background:#2c2316;padding:36px 48px 32px;text-align:center; }
+.hero img { height:22px;margin:0 auto 20px;display:block;opacity:0.85; }
 .hero-title { font-family:'Dazzle Unicase',serif;font-weight:300;font-size:32px;color:white;letter-spacing:0.06em; }
 .hero-sub { font-size:12px;color:rgba(255,255,255,0.5);margin-top:6px;font-weight:300; }
-.hero-meta { text-align:right;font-size:12px;color:rgba(255,255,255,0.6); }
-.hero-meta strong { color:white;display:block;font-size:14px;margin-bottom:4px;font-weight:400; }
+.hero-meta { margin-top:16px;font-size:12px;color:rgba(255,255,255,0.6); }
+.hero-meta strong { color:white;display:inline;font-size:13px;font-weight:400; }
 .content { padding:32px 48px; }
 .summary { display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px; }
 .card { background:white;border-radius:10px;padding:16px 20px;border:1px solid #e5dfd5; }
@@ -135,14 +131,12 @@ td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
 @media print { body{background:white} .hero{-webkit-print-color-adjust:exact;print-color-adjust:exact} thead tr{-webkit-print-color-adjust:exact;print-color-adjust:exact} }
 </style></head><body>
 <div class="hero">
-  <div>
-    <img src="${origin}/logo-mohona-white.svg" alt="MOHONA" />
-    <div class="hero-title">Zeiterfassung</div>
-    <div class="hero-sub">${dateFrom} – ${dateTo}</div>
-  </div>
+  <img src="${origin}/logo-mohona-white.svg" alt="MOHONA" />
+  <div class="hero-title">Zeiterfassung</div>
+  <div class="hero-sub">${dateFrom} – ${dateTo}</div>
   <div class="hero-meta">
     <strong>${companyFilter}${projectFilter ? ` · ${projectFilter}` : ''}</strong>
-    Erstellt am ${new Date().toLocaleDateString('de-AT', { day:'2-digit', month:'long', year:'numeric' })}
+    &nbsp;· Erstellt am ${new Date().toLocaleDateString('de-AT', { day:'2-digit', month:'long', year:'numeric' })}
   </div>
 </div>
 <div class="content">
@@ -192,7 +186,7 @@ td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
             <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>
               Export
             </h1>
-            <p className="text-sm text-[#8a7f72] mt-1 font-light">Exportiere deine Einträge als CSV oder PDF.</p>
+            <p className="text-sm text-[#8a7f72] mt-1 font-light">Exportiere deine Einträge als Excel oder PDF.</p>
           </div>
 
           <div className="bg-white rounded-xl border border-[#e5dfd5] p-5 mb-6">
@@ -224,7 +218,7 @@ td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
 
           <div className="grid grid-cols-2 gap-4 mb-6">
             {[
-              { type: 'csv' as const, label: 'CSV Export', desc: 'Für Excel & Tabellenkalkulation', icon: Table, handler: handleCSVExport },
+              { type: 'excel' as const, label: 'Excel Export', desc: 'Als .xlsx Datei herunterladen', icon: FileSpreadsheet, handler: handleExcelExport },
               { type: 'pdf' as const, label: 'PDF Export', desc: 'Druckbarer Bericht', icon: FileText, handler: handlePDFExport },
             ].map(({ type, label, desc, icon: Icon, handler }) => (
               <button key={type} onClick={handler} disabled={exporting !== null}
@@ -240,7 +234,7 @@ td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
                 </div>
                 <div className="flex items-center gap-1.5 text-xs font-medium text-[#8a7f72] group-hover:text-[#2c2316]">
                   <Download size={12} />
-                  {exporting === type ? 'Exportiere...' : `Als ${type.toUpperCase()} herunterladen`}
+                  {exporting === type ? 'Exportiere...' : type === 'excel' ? 'Als .xlsx herunterladen' : 'Als PDF herunterladen'}
                 </div>
               </button>
             ))}
