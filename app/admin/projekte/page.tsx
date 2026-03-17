@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar'
 import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Company, Project, Profile } from '@/lib/types'
-import { Plus, Pencil, X, Check, Search } from 'lucide-react'
+import { Plus, Pencil, X, Check, Search, CheckCircle, Circle, ChevronDown, ChevronUp } from 'lucide-react'
 import CompanySelect from '@/components/CompanySelect'
 import DateNavigator from '@/components/DateNavigator'
 import CompanyBadge from '@/components/CompanyBadge'
@@ -39,6 +39,7 @@ function ProjekteContent({ profile }: { profile: Profile }) {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', company_id: '', planned_hours: '' })
   const [saving, setSaving] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
   const [allEntries, setAllEntries] = useState<{project_id: string; duration_minutes: number; date: string}[]>([])
   const now = new Date()
   const [dateFrom, setDateFrom] = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`)
@@ -75,6 +76,9 @@ function ProjekteContent({ profile }: { profile: Profile }) {
     .filter(p => !filterCompany || p.company_id === filterCompany)
     .filter(p => !filterName || p.name.toLowerCase().includes(filterName.toLowerCase()))
 
+  const activeProjects = filtered.filter(p => !p.is_completed)
+  const completedProjects = filtered.filter(p => p.is_completed)
+
   async function handleAdd() {
     if (!form.name.trim() || !form.company_id) return
     setSaving(true)
@@ -100,6 +104,11 @@ function ProjekteContent({ profile }: { profile: Profile }) {
   async function toggleActive(project: Project) {
     await updateDoc(doc(db, 'projects', project.id), { is_active: !project.is_active })
     setProjects(prev => prev.map(p => p.id === project.id ? { ...p, is_active: !p.is_active } : p))
+  }
+
+  async function toggleCompleted(project: Project) {
+    await updateDoc(doc(db, 'projects', project.id), { is_completed: !project.is_completed })
+    setProjects(prev => prev.map(p => p.id === project.id ? { ...p, is_completed: !p.is_completed } : p))
   }
 
   return (
@@ -146,62 +155,100 @@ function ProjekteContent({ profile }: { profile: Profile }) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#e5dfd5] bg-[#faf8f5]">
-                {['Projekt', 'Firma', 'Stunden', 'Status', ''].map((h, i) => (
+                {['', 'Projekt', 'Firma', 'Stunden', 'Status', ''].map((h, i) => (
                   <th key={i} className="text-left text-xs text-[#8a7f72] px-4 py-3 uppercase tracking-wide font-normal">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f5f0ea]">
-              {filtered.map(project => (
-                <>
-                  <tr key={project.id} className="hover:bg-[#faf8f5] group">
-                    <td className="px-4 py-3 text-sm text-[#1e1813] font-light">{project.name}</td>
-                    <td className="px-4 py-3"><CompanyBadge company={project.company} size="sm" /></td>
-                    <td className="px-4 py-3 min-w-[140px]">
-                      {project.planned_hours ? (() => {
-                        const used = (usedMinutes.get(project.id) ?? 0) / 60
-                        const pct = Math.min(used / project.planned_hours * 100, 100)
-                        const over = used > project.planned_hours
-                        return (
-                          <div>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className={`font-light ${over ? 'text-red-500' : 'text-[#1e1813]'}`}>{Math.round(used * 10) / 10}h</span>
-                              <span className="text-[#b5a99a] font-light">/ {project.planned_hours}h</span>
-                            </div>
-                            <div className="h-1.5 bg-[#f5f0ea] rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all"
-                                style={{ width: `${pct}%`, backgroundColor: over ? '#dc2626' : pct > 80 ? '#d97706' : '#16a34a' }} />
-                            </div>
-                          </div>
-                        )
-                      })() : <span className="text-xs text-[#e5dfd5]">–</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${project.is_active ? 'bg-green-50 text-green-700' : 'bg-[#f5f0ea] text-[#8a7f72]'}`}>
-                        {project.is_active ? 'Aktiv' : 'Inaktiv'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                        <button onClick={() => { setForm({ name: project.name, company_id: project.company_id, planned_hours: project.planned_hours?.toString() ?? '' }); setEditId(project.id); setShowAdd(false) }} className="p-1.5 text-[#b5a99a] hover:text-[#2c2316] hover:bg-[#f0ebe3] rounded-lg"><Pencil size={14} /></button>
-                        <button onClick={() => toggleActive(project)} className="p-1.5 text-[#b5a99a] hover:text-[#1e1813] hover:bg-[#faf8f5] rounded-lg">{project.is_active ? <X size={14} /> : <Check size={14} />}</button>
-                      </div>
-                    </td>
-                  </tr>
-                  {editId === project.id && (
-                    <tr key={`edit-${project.id}`}>
-                      <td colSpan={5} className="px-4 py-4 bg-[#faf8f5] border-b border-[#e5dfd5]">
-                        <ProjectForm form={form} setForm={setForm} companies={companies} onSave={() => handleUpdate(project.id)} onCancel={() => setEditId(null)} saving={saving} />
-                      </td>
-                    </tr>
-                  )}
-                </>
+              {activeProjects.map(project => (
+                <ProjectRow key={project.id} project={project} usedMinutes={usedMinutes} editId={editId} form={form} setForm={setForm} companies={companies} saving={saving}
+                  onEdit={() => { setForm({ name: project.name, company_id: project.company_id, planned_hours: project.planned_hours?.toString() ?? '' }); setEditId(project.id); setShowAdd(false) }}
+                  onUpdate={() => handleUpdate(project.id)} onCancelEdit={() => setEditId(null)}
+                  onToggleActive={() => toggleActive(project)} onToggleCompleted={() => toggleCompleted(project)} />
+              ))}
+              {completedProjects.length > 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-2 bg-[#faf8f5]">
+                    <button onClick={() => setShowCompleted(v => !v)}
+                      className="flex items-center gap-1.5 text-xs text-[#8a7f72] hover:text-[#1e1813] font-light transition-colors">
+                      {showCompleted ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                      Abgeschlossene anzeigen ({completedProjects.length})
+                    </button>
+                  </td>
+                </tr>
+              )}
+              {showCompleted && completedProjects.map(project => (
+                <ProjectRow key={project.id} project={project} usedMinutes={usedMinutes} editId={editId} form={form} setForm={setForm} companies={companies} saving={saving}
+                  onEdit={() => { setForm({ name: project.name, company_id: project.company_id, planned_hours: project.planned_hours?.toString() ?? '' }); setEditId(project.id); setShowAdd(false) }}
+                  onUpdate={() => handleUpdate(project.id)} onCancelEdit={() => setEditId(null)}
+                  onToggleActive={() => toggleActive(project)} onToggleCompleted={() => toggleCompleted(project)} completed />
               ))}
             </tbody>
           </table>
         )}
       </div>
     </div>
+  )
+}
+
+function ProjectRow({ project, usedMinutes, editId, form, setForm, companies, saving, onEdit, onUpdate, onCancelEdit, onToggleActive, onToggleCompleted, completed }: {
+  project: Project; usedMinutes: Map<string, number>; editId: string | null
+  form: { name: string; company_id: string; planned_hours: string }
+  setForm: (f: { name: string; company_id: string; planned_hours: string }) => void
+  companies: Company[]; saving: boolean; completed?: boolean
+  onEdit: () => void; onUpdate: () => void; onCancelEdit: () => void
+  onToggleActive: () => void; onToggleCompleted: () => void
+}) {
+  const dim = completed ? 'opacity-40' : ''
+  const used = (usedMinutes.get(project.id) ?? 0) / 60
+  const pct = project.planned_hours ? Math.min(used / project.planned_hours * 100, 100) : 0
+  const over = project.planned_hours ? used > project.planned_hours : false
+  return (
+    <>
+      <tr className={`hover:bg-[#faf8f5] group ${completed ? 'bg-[#faf8f5]' : ''}`}>
+        <td className="px-4 py-3 w-8">
+          <button onClick={onToggleCompleted} title={completed ? 'Als offen markieren' : 'Als abgeschlossen markieren'}
+            className={`transition-colors ${completed ? 'text-green-600 hover:text-[#8a7f72]' : 'text-[#e5dfd5] hover:text-green-600'}`}>
+            {completed ? <CheckCircle size={16} /> : <Circle size={16} />}
+          </button>
+        </td>
+        <td className={`px-4 py-3 text-sm font-light ${completed ? 'text-[#b5a99a] line-through' : 'text-[#1e1813]'}`}>{project.name}</td>
+        <td className={`px-4 py-3 ${dim}`}><CompanyBadge company={project.company} size="sm" /></td>
+        <td className={`px-4 py-3 min-w-[140px] ${dim}`}>
+          {project.planned_hours ? (
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className={`font-light ${over ? 'text-red-500' : 'text-[#1e1813]'}`}>{Math.round(used * 10) / 10}h</span>
+                <span className="text-[#b5a99a] font-light">/ {project.planned_hours}h</span>
+              </div>
+              <div className="h-1.5 bg-[#f5f0ea] rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all"
+                  style={{ width: `${pct}%`, backgroundColor: over ? '#dc2626' : pct > 80 ? '#d97706' : '#16a34a' }} />
+              </div>
+            </div>
+          ) : <span className="text-xs text-[#e5dfd5]">–</span>}
+        </td>
+        <td className={`px-4 py-3 ${dim}`}>
+          <span className={`text-xs font-medium px-2 py-1 rounded-full ${project.is_active ? 'bg-green-50 text-green-700' : 'bg-[#f5f0ea] text-[#8a7f72]'}`}>
+            {project.is_active ? 'Aktiv' : 'Inaktiv'}
+          </span>
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+            <button onClick={onEdit} className="p-1.5 text-[#b5a99a] hover:text-[#2c2316] hover:bg-[#f0ebe3] rounded-lg"><Pencil size={14} /></button>
+            <button onClick={onToggleActive} className="p-1.5 text-[#b5a99a] hover:text-[#1e1813] hover:bg-[#faf8f5] rounded-lg">{project.is_active ? <X size={14} /> : <Check size={14} />}</button>
+          </div>
+        </td>
+      </tr>
+      {editId === project.id && (
+        <tr>
+          <td colSpan={6} className="px-4 py-4 bg-[#faf8f5] border-b border-[#e5dfd5]">
+            <ProjectForm form={form} setForm={setForm} companies={companies} onSave={onUpdate} onCancel={onCancelEdit} saving={saving} />
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
 
