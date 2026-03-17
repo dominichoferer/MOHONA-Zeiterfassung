@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import AuthGuard from '@/components/AuthGuard'
 import AdminGuard from '@/components/AdminGuard'
 import Navbar from '@/components/Navbar'
-import { collection, getDocs, addDoc, updateDoc, doc, query, orderBy, where } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Company, Project, Profile } from '@/lib/types'
 import { Plus, Pencil, X, Check, ChevronDown } from 'lucide-react'
@@ -40,10 +40,10 @@ function ProjekteContent({ profile }: { profile: Profile }) {
 
   useEffect(() => {
     Promise.all([
-      getDocs(query(collection(db, 'companies'), where('is_active', '==', true), orderBy('name'))),
-      getDocs(query(collection(db, 'projects'), orderBy('name'))),
+      getDocs(collection(db, 'companies')),
+      getDocs(collection(db, 'projects')),
     ]).then(([c, p]) => {
-      const compList = c.docs.map(d => ({ id: d.id, ...d.data() } as Company))
+      const compList = c.docs.map(d => ({ id: d.id, ...d.data() } as Company)).filter(c => c.is_active).sort((a, b) => a.name.localeCompare(b.name))
       const compMap = new Map(compList.map(c => [c.id, c]))
       setCompanies(compList)
       setProjects(p.docs.map(d => {
