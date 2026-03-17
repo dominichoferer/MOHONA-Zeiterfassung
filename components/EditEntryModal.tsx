@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { collection, getDocs, updateDoc, doc, query, where, orderBy } from 'firebase/firestore'
+import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { TimeEntry, Company, Project } from '@/lib/types'
 import { DURATION_OPTIONS } from '@/lib/config'
@@ -27,14 +27,22 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
   const [error, setError] = useState('')
 
   useEffect(() => {
-    getDocs(query(collection(db, 'companies'), where('is_active', '==', true), orderBy('name')))
-      .then(snap => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company))))
+    getDocs(collection(db, 'companies')).then(snap => {
+      setCompanies(snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Company))
+        .filter(c => c.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name)))
+    })
   }, [])
 
   useEffect(() => {
     if (!companyId) { setProjects([]); return }
-    getDocs(query(collection(db, 'projects'), where('company_id', '==', companyId), where('is_active', '==', true), orderBy('name')))
-      .then(snap => setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as Project))))
+    getDocs(query(collection(db, 'projects'), where('company_id', '==', companyId))).then(snap => {
+      setProjects(snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Project))
+        .filter(p => p.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name)))
+    })
   }, [companyId])
 
   async function handleSave() {
@@ -58,9 +66,7 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg border border-[#e5dfd5]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5dfd5]">
           <h2 className="text-xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Eintrag bearbeiten</h2>
-          <button onClick={onClose} className="text-[#b5a99a] hover:text-[#1e1813] transition-colors">
-            <X size={18} />
-          </button>
+          <button onClick={onClose} className="text-[#b5a99a] hover:text-[#1e1813]"><X size={18} /></button>
         </div>
 
         <div className="p-6 space-y-4">
@@ -109,9 +115,7 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
               {DURATION_OPTIONS.map(opt => (
                 <button key={opt.minutes} onClick={() => setDurationMinutes(opt.minutes)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                    durationMinutes === opt.minutes
-                      ? 'bg-[#2c2316] text-white border-[#2c2316]'
-                      : 'border-[#e5dfd5] text-[#8a7f72] hover:border-[#2c2316] hover:text-[#2c2316]'
+                    durationMinutes === opt.minutes ? 'bg-[#2c2316] text-white border-[#2c2316]' : 'border-[#e5dfd5] text-[#8a7f72] hover:border-[#2c2316] hover:text-[#2c2316]'
                   }`}>
                   {opt.label}
                 </button>
@@ -123,9 +127,7 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
         </div>
 
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-[#e5dfd5]">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-[#8a7f72] border border-[#e5dfd5] rounded-lg hover:border-[#b5a99a] font-light">
-            Abbrechen
-          </button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[#8a7f72] border border-[#e5dfd5] rounded-lg hover:border-[#b5a99a] font-light">Abbrechen</button>
           <button onClick={handleSave} disabled={!description || !companyId || saving}
             className="px-4 py-2 text-sm font-medium bg-[#2c2316] hover:bg-[#3d3220] disabled:opacity-50 text-white rounded-lg">
             {saving ? 'Speichern...' : 'Änderungen speichern'}

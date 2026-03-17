@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore'
+import { collection, getDocs, addDoc, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Company, Project, Profile } from '@/lib/types'
 import { DURATION_OPTIONS } from '@/lib/config'
@@ -37,14 +37,27 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    getDocs(query(collection(db, 'companies'), where('is_active', '==', true), orderBy('name')))
-      .then(snap => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company))))
+    // Fetch all companies, filter active client-side (avoids composite index)
+    getDocs(collection(db, 'companies')).then(snap => {
+      const list = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Company))
+        .filter(c => c.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name))
+      setCompanies(list)
+    })
   }, [])
 
   useEffect(() => {
     if (!companyId) { setProjects([]); setProjectId(''); return }
-    getDocs(query(collection(db, 'projects'), where('company_id', '==', companyId), where('is_active', '==', true), orderBy('name')))
-      .then(snap => { setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as Project))); setProjectId('') })
+    // Fetch projects by company only, filter active client-side (avoids composite index)
+    getDocs(query(collection(db, 'projects'), where('company_id', '==', companyId))).then(snap => {
+      const list = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Project))
+        .filter(p => p.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name))
+      setProjects(list)
+      setProjectId('')
+    })
   }, [companyId])
 
   async function handleAiProcess() {
@@ -115,17 +128,11 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
           { key: 'ai', label: 'KI-Schnelleingabe', icon: Sparkles },
           { key: 'manual', label: 'Manuell', icon: PenLine },
         ] as const).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setMode(key)}
+          <button key={key} onClick={() => setMode(key)}
             className={`flex items-center gap-2 px-6 py-4 text-sm border-b-2 transition-colors ${
-              mode === key
-                ? 'border-[#2c2316] text-[#2c2316] font-medium'
-                : 'border-transparent text-[#8a7f72] hover:text-[#1e1813] font-light'
-            }`}
-          >
-            <Icon size={15} />
-            {label}
+              mode === key ? 'border-[#2c2316] text-[#2c2316] font-medium' : 'border-transparent text-[#8a7f72] hover:text-[#1e1813] font-light'
+            }`}>
+            <Icon size={15} />{label}
           </button>
         ))}
       </div>
@@ -135,33 +142,19 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
           <div>
             <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Beschreibe was du gemacht hast</label>
             <div className="flex gap-2">
-              <input
-                type="text"
-                value={aiInput}
-                onChange={e => setAiInput(e.target.value)}
+              <input type="text" value={aiInput} onChange={e => setAiInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAiProcess()}
-                placeholder='z.B. "Newsletter für Kunde A, 2 Stunden"'
-                className={inputClass}
-              />
-              <button
-                onClick={handleAiProcess}
-                disabled={aiInput.trim().length < 3 || aiLoading}
-                className="flex items-center gap-2 bg-[#2c2316] hover:bg-[#3d3220] disabled:opacity-50 text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
-              >
-                <Sparkles size={14} />
-                {aiLoading ? 'Analysiere...' : 'Analysieren'}
+                placeholder='z.B. "Newsletter für Kunde A, 2 Stunden"' className={inputClass} />
+              <button onClick={handleAiProcess} disabled={aiInput.trim().length < 3 || aiLoading}
+                className="flex items-center gap-2 bg-[#2c2316] hover:bg-[#3d3220] disabled:opacity-50 text-white px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap">
+                <Sparkles size={14} />{aiLoading ? 'Analysiere...' : 'Analysieren'}
               </button>
             </div>
             {aiConfidence !== null && aiDone && (
               <div className="mt-2 flex items-center gap-2">
                 <div className="h-1 flex-1 bg-[#f5f0ea] rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${aiConfidence * 100}%`,
-                      backgroundColor: aiConfidence > 0.7 ? '#16a34a' : aiConfidence > 0.4 ? '#d97706' : '#dc2626',
-                    }}
-                  />
+                  <div className="h-full rounded-full transition-all"
+                    style={{ width: `${aiConfidence * 100}%`, backgroundColor: aiConfidence > 0.7 ? '#16a34a' : aiConfidence > 0.4 ? '#d97706' : '#dc2626' }} />
                 </div>
                 <span className="text-xs text-[#8a7f72] font-light">{Math.round(aiConfidence * 100)}% Sicherheit</span>
               </div>
@@ -180,14 +173,11 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
             <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Firma / Kunde *</label>
             <div className="flex flex-wrap gap-2">
               {companies.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => setCompanyId(companyId === c.id ? '' : c.id)}
+                <button key={c.id} onClick={() => setCompanyId(companyId === c.id ? '' : c.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-all ${
                     companyId === c.id ? 'border-transparent shadow-sm' : 'border-[#e5dfd5] text-[#8a7f72] bg-white hover:border-[#b5a99a]'
                   }`}
-                  style={companyId === c.id ? { backgroundColor: c.color, color: c.text_color } : {}}
-                >
+                  style={companyId === c.id ? { backgroundColor: c.color, color: c.text_color } : {}}>
                   {c.name}
                 </button>
               ))}
@@ -216,11 +206,8 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
               {DURATION_OPTIONS.map(opt => (
                 <button key={opt.minutes} onClick={() => setDurationMinutes(opt.minutes)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                    durationMinutes === opt.minutes
-                      ? 'bg-[#2c2316] text-white border-[#2c2316]'
-                      : 'border-[#e5dfd5] text-[#8a7f72] hover:border-[#2c2316] hover:text-[#2c2316]'
-                  }`}
-                >
+                    durationMinutes === opt.minutes ? 'bg-[#2c2316] text-white border-[#2c2316]' : 'border-[#e5dfd5] text-[#8a7f72] hover:border-[#2c2316] hover:text-[#2c2316]'
+                  }`}>
                   {opt.label}
                 </button>
               ))}
@@ -233,18 +220,14 @@ export default function TimeEntryForm({ profile }: TimeEntryFormProps) {
           </div>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3">
-            <p className="text-xs text-red-600">{error}</p>
-          </div>
-        )}
+        {error && <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3"><p className="text-xs text-red-600">{error}</p></div>}
 
         <div className="flex items-center justify-between pt-2 border-t border-[#e5dfd5]">
           <p className="text-xs text-[#b5a99a] font-light">
             {canSave ? `${formatDuration(durationMinutes)} · ${companies.find(c => c.id === companyId)?.name ?? ''}` : 'Pflichtfelder ausfüllen'}
           </p>
           <button onClick={handleSubmit} disabled={!canSave || saving}
-            className="bg-[#2c2316] hover:bg-[#3d3220] disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-colors">
+            className="bg-[#2c2316] hover:bg-[#3d3220] disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg text-sm">
             {saving ? 'Speichern...' : 'Eintrag speichern'}
           </button>
         </div>

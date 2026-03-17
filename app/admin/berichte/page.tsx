@@ -37,11 +37,15 @@ function BerichteContent({ profile }: { profile: Profile }) {
     async function load() {
       setLoading(true)
       const [compSnap, profSnap, entrySnap] = await Promise.all([
-        getDocs(query(collection(db, 'companies'), where('is_active', '==', true), orderBy('name'))),
+        getDocs(collection(db, 'companies')),
         getDocs(collection(db, 'profiles')),
+        // date range on same field = no composite index needed
         getDocs(query(collection(db, 'time_entries'), where('date', '>=', dateFrom), where('date', '<=', dateTo), orderBy('date', 'desc'))),
       ])
-      const compList = compSnap.docs.map(d => ({ id: d.id, ...d.data() } as Company))
+      const compList = compSnap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Company))
+        .filter(c => c.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name))
       const compMap = new Map(compList.map(c => [c.id, c]))
       const profMap = new Map(profSnap.docs.map(d => [d.id, { id: d.id, user_id: d.id, ...d.data() } as Profile]))
       setCompanies(compList)
@@ -79,9 +83,7 @@ function BerichteContent({ profile }: { profile: Profile }) {
     <div className="max-w-5xl mx-auto">
       <div className="flex items-end justify-between mb-8 pt-4">
         <div>
-          <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>
-            Berichte & Auswertungen
-          </h1>
+          <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Berichte & Auswertungen</h1>
           <p className="text-sm text-[#8a7f72] mt-1 font-light">Übersicht aller erfassten Zeiten.</p>
         </div>
         <div className="flex items-center gap-2 bg-white border border-[#e5dfd5] rounded-lg px-4 py-2.5">

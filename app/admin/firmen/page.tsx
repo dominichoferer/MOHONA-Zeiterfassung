@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react'
 import AuthGuard from '@/components/AuthGuard'
 import AdminGuard from '@/components/AdminGuard'
 import Navbar from '@/components/Navbar'
-import { collection, getDocs, addDoc, updateDoc, doc, orderBy, query } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Company, Profile } from '@/lib/types'
-import { Plus, Pencil, Check, X } from 'lucide-react'
+import { Plus, Pencil, Check, X, Trash2 } from 'lucide-react'
 
 const PRESET_COLORS = [
   { color: '#2c2316', text: '#ffffff' },
@@ -45,6 +45,8 @@ function FirmenContent({ profile }: { profile: Profile }) {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', color: '#2c2316', text_color: '#ffffff' })
   const [saving, setSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   void profile
 
   useEffect(() => {
@@ -71,6 +73,14 @@ function FirmenContent({ profile }: { profile: Profile }) {
     setCompanies(prev => prev.map(c => c.id === id ? { ...c, name: form.name, color: form.color, text_color: form.text_color } : c))
     setEditId(null)
     setSaving(false)
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(true)
+    await deleteDoc(doc(db, 'companies', id))
+    setCompanies(prev => prev.filter(c => c.id !== id))
+    setDeleteConfirm(null)
+    setDeleting(false)
   }
 
   async function toggleActive(company: Company) {
@@ -131,6 +141,7 @@ function FirmenContent({ profile }: { profile: Profile }) {
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                         <button onClick={() => { setForm({ name: company.name, color: company.color, text_color: company.text_color }); setEditId(company.id); setShowAdd(false) }} className="p-1.5 text-[#b5a99a] hover:text-[#2c2316] hover:bg-[#f0ebe3] rounded-lg"><Pencil size={14} /></button>
                         <button onClick={() => toggleActive(company)} className="p-1.5 text-[#b5a99a] hover:text-[#1e1813] hover:bg-[#faf8f5] rounded-lg">{company.is_active ? <X size={14} /> : <Check size={14} />}</button>
+                        <button onClick={() => setDeleteConfirm(company.id)} className="p-1.5 text-[#b5a99a] hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={14} /></button>
                       </div>
                     </td>
                   </tr>
@@ -147,6 +158,23 @@ function FirmenContent({ profile }: { profile: Profile }) {
           </table>
         )}
       </div>
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full border border-[#e5dfd5]">
+            <h3 className="text-xl text-[#1e1813] mb-2" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>Firma löschen?</h3>
+            <p className="text-sm text-[#8a7f72] mb-1 font-light">
+              <strong className="text-[#1e1813]">{companies.find(c => c.id === deleteConfirm)?.name}</strong> wird permanent gelöscht.
+            </p>
+            <p className="text-xs text-[#b5a99a] mb-6 font-light">Bestehende Zeiteinträge bleiben erhalten, haben aber keinen Firmenbezug mehr.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 text-sm text-[#8a7f72] border border-[#e5dfd5] rounded-lg font-light">Abbrechen</button>
+              <button onClick={() => handleDelete(deleteConfirm)} disabled={deleting} className="flex-1 py-2.5 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg disabled:opacity-50">
+                {deleting ? 'Löschen...' : 'Endgültig löschen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { TimeEntry, Company } from '@/lib/types'
 import { formatDuration, startOfWeekISO, startOfMonthISO, todayISO } from '@/lib/utils'
@@ -24,26 +24,26 @@ export default function DashboardStats({ period, userId }: DashboardStatsProps) 
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const compSnap = await getDocs(
-        query(collection(db, 'companies'), where('is_active', '==', true), orderBy('name'))
-      )
-      const compList = compSnap.docs.map(d => ({ id: d.id, ...d.data() } as Company))
+      // Fetch all companies, filter client-side (avoids composite index)
+      const compSnap = await getDocs(collection(db, 'companies'))
+      const compList = compSnap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Company))
+        .filter(c => c.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name))
       setCompanies(compList)
       const compMap = new Map(compList.map(c => [c.id, c]))
 
+      // Fetch entries by user only (no composite index needed), filter dates client-side
       const entriesSnap = await getDocs(
-        query(
-          collection(db, 'time_entries'),
-          where('user_id', '==', userId),
-          where('date', '>=', periodStart),
-          where('date', '<=', today),
-          orderBy('date', 'desc')
-        )
+        query(collection(db, 'time_entries'), where('user_id', '==', userId))
       )
-      const raw = entriesSnap.docs.map(d => {
-        const data = d.data()
-        return { id: d.id, ...data, company: data.company_id ? compMap.get(data.company_id) : undefined } as TimeEntry
-      })
+      const raw = entriesSnap.docs
+        .map(d => {
+          const data = d.data()
+          return { id: d.id, ...data, company: data.company_id ? compMap.get(data.company_id) : undefined } as TimeEntry
+        })
+        .filter(e => e.date >= periodStart && e.date <= today)
+        .sort((a, b) => b.date.localeCompare(a.date))
       setEntries(raw)
       setLoading(false)
     }
@@ -106,10 +106,8 @@ export default function DashboardStats({ period, userId }: DashboardStatsProps) 
                     <span className="text-xs text-[#8a7f72] font-light">{formatDuration(minutes)}</span>
                   </div>
                   <div className="h-1.5 bg-[#f5f0ea] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${(minutes / maxMinutes) * 100}%`, backgroundColor: company.color }}
-                    />
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${(minutes / maxMinutes) * 100}%`, backgroundColor: company.color }} />
                   </div>
                 </div>
               ))}
@@ -132,9 +130,7 @@ export default function DashboardStats({ period, userId }: DashboardStatsProps) 
                   </div>
                 </div>
               ))}
-              {todayEntries.length > 6 && (
-                <p className="text-xs text-[#b5a99a] font-light">+{todayEntries.length - 6} weitere</p>
-              )}
+              {todayEntries.length > 6 && <p className="text-xs text-[#b5a99a] font-light">+{todayEntries.length - 6} weitere</p>}
             </div>
           )}
         </div>

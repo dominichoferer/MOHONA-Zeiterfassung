@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { collection, getDocs, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore'
+import { collection, getDocs, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { TimeEntry, Company, Profile } from '@/lib/types'
 import { formatDuration, formatDateShort } from '@/lib/utils'
@@ -28,21 +28,27 @@ export default function EntryList({ profile }: EntryListProps) {
   const isAdmin = profile.role === 'admin'
 
   useEffect(() => {
-    getDocs(query(collection(db, 'companies'), where('is_active', '==', true), orderBy('name')))
-      .then(snap => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() } as Company))))
+    getDocs(collection(db, 'companies')).then(snap => {
+      setCompanies(snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Company))
+        .filter(c => c.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name)))
+    })
   }, [])
 
   useEffect(() => { loadEntries() }, [filterCompany, filterDateFrom, filterDateTo, isAdmin])
 
   async function loadEntries() {
     setLoading(true)
-    const constraints: Parameters<typeof query>[1][] = [orderBy('date', 'desc')]
-    if (!isAdmin) constraints.push(where('user_id', '==', profile.user_id))
-    if (filterCompany) constraints.push(where('company_id', '==', filterCompany))
-    if (filterDateFrom) constraints.push(where('date', '>=', filterDateFrom))
-    if (filterDateTo) constraints.push(where('date', '<=', filterDateTo))
 
-    const snap = await getDocs(query(collection(db, 'time_entries'), ...constraints))
+    // Fetch entries: admin gets all, user gets own only (single where = no composite index)
+    const snap = await getDocs(
+      isAdmin
+        ? collection(db, 'time_entries')
+        : query(collection(db, 'time_entries'), where('user_id', '==', profile.user_id))
+    )
+
+    // Load lookup data
     const [compSnap, projSnap, profSnap] = await Promise.all([
       getDocs(collection(db, 'companies')),
       getDocs(collection(db, 'projects')),
@@ -52,10 +58,25 @@ export default function EntryList({ profile }: EntryListProps) {
     const projMap = new Map(projSnap.docs.map(d => [d.id, { id: d.id, ...d.data() }]))
     const profMap = profSnap ? new Map(profSnap.docs.map(d => [d.id, { id: d.id, user_id: d.id, ...d.data() } as Profile])) : new Map()
 
-    setEntries(snap.docs.map(d => {
+    let result = snap.docs.map(d => {
       const data = d.data()
-      return { id: d.id, ...data, company: data.company_id ? compMap.get(data.company_id) : undefined, project: data.project_id ? projMap.get(data.project_id) : undefined, profile: profMap.get(data.user_id) } as TimeEntry
-    }))
+      return {
+        id: d.id, ...data,
+        company: data.company_id ? compMap.get(data.company_id) : undefined,
+        project: data.project_id ? projMap.get(data.project_id) : undefined,
+        profile: profMap.get(data.user_id),
+      } as TimeEntry
+    })
+
+    // Filter client-side
+    if (filterCompany) result = result.filter(e => e.company_id === filterCompany)
+    if (filterDateFrom) result = result.filter(e => e.date >= filterDateFrom)
+    if (filterDateTo) result = result.filter(e => e.date <= filterDateTo)
+
+    // Sort by date desc
+    result.sort((a, b) => b.date.localeCompare(a.date))
+
+    setEntries(result)
     setLoading(false)
   }
 
@@ -69,10 +90,6 @@ export default function EntryList({ profile }: EntryListProps) {
 
   const hasFilters = filterCompany || filterDateFrom || filterDateTo
   const totalMinutes = entries.reduce((s, e) => s + e.duration_minutes, 0)
-
-  function canEdit(entry: TimeEntry) {
-    return isAdmin || entry.user_id === profile.user_id
-  }
 
   return (
     <div>
@@ -131,20 +148,14 @@ export default function EntryList({ profile }: EntryListProps) {
                   <td className="px-4 py-3 text-xs text-[#8a7f72] whitespace-nowrap font-light">{formatDateShort(entry.date)}</td>
                   <td className="px-4 py-3"><CompanyBadge company={entry.company} size="sm" /></td>
                   <td className="px-4 py-3 text-sm text-[#1e1813] max-w-xs truncate font-light">{entry.description}</td>
-                  <td className="px-4 py-3 text-xs text-[#8a7f72] font-light">{entry.project?.name ?? <span className="text-[#e5dfd5]">–</span>}</td>
+                  <td className="px-4 py-3 text-xs text-[#8a7f72] font-light">{(entry.project as {name?: string})?.name ?? <span className="text-[#e5dfd5]">–</span>}</td>
                   <td className="px-4 py-3 text-xs font-medium text-[#1e1813] whitespace-nowrap">{formatDuration(entry.duration_minutes)}</td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-xs text-[#8a7f72] font-light">{entry.profile?.staff_name ?? entry.staff_code}</td>
-                  )}
+                  {isAdmin && <td className="px-4 py-3 text-xs text-[#8a7f72] font-light">{entry.profile?.staff_name ?? entry.staff_code}</td>}
                   <td className="px-4 py-3">
-                    {canEdit(entry) && (
+                    {(isAdmin || entry.user_id === profile.user_id) && (
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => setEditEntry(entry)} className="p-1.5 text-[#b5a99a] hover:text-[#2c2316] hover:bg-[#f0ebe3] rounded-lg">
-                          <Pencil size={13} />
-                        </button>
-                        <button onClick={() => setDeleteConfirm(entry.id)} className="p-1.5 text-[#b5a99a] hover:text-red-500 hover:bg-red-50 rounded-lg">
-                          <Trash2 size={13} />
-                        </button>
+                        <button onClick={() => setEditEntry(entry)} className="p-1.5 text-[#b5a99a] hover:text-[#2c2316] hover:bg-[#f0ebe3] rounded-lg"><Pencil size={13} /></button>
+                        <button onClick={() => setDeleteConfirm(entry.id)} className="p-1.5 text-[#b5a99a] hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={13} /></button>
                       </div>
                     )}
                   </td>
@@ -171,11 +182,8 @@ export default function EntryList({ profile }: EntryListProps) {
       )}
 
       {editEntry && (
-        <EditEntryModal
-          entry={editEntry}
-          onClose={() => setEditEntry(null)}
-          onSaved={updated => { setEntries(prev => prev.map(e => e.id === updated.id ? updated : e)); setEditEntry(null) }}
-        />
+        <EditEntryModal entry={editEntry} onClose={() => setEditEntry(null)}
+          onSaved={updated => { setEntries(prev => prev.map(e => e.id === updated.id ? updated : e)); setEditEntry(null) }} />
       )}
     </div>
   )
