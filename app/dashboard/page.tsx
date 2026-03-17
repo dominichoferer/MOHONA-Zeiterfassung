@@ -21,17 +21,26 @@ function DashboardContent({ profile }: { profile: Profile }) {
   return (
     <div className="min-h-screen bg-[#faf8f5]">
       <Navbar profile={profile} />
-      <main className="pt-14 p-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-end justify-between mb-10 pt-4">
+      <main className="pt-14">
+        {/* Hero Header */}
+        <div className="relative w-full h-52 overflow-hidden">
+          <img src="/dashboard-header.jpg" alt="" className="w-full h-full object-cover object-center" />
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="absolute inset-0 flex items-center px-10">
             <div>
-              <h1 className="text-4xl text-[#1e1813]" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>
+              <h1 className="text-5xl text-white" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontWeight: 300 }}>
                 Hallo, {profile.staff_name?.split(' ')[0] ?? profile.staff_code ?? 'dort'}.
               </h1>
-              <p className="text-sm text-[#8a7f72] mt-1 font-light">
+              <p className="text-sm text-white/60 mt-1 font-light">
                 Deine Übersicht für diese{period === 'week' ? ' Woche' : 'n Monat'}.
               </p>
             </div>
+          </div>
+        </div>
+
+        <div className="p-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-end mb-10">
             <div className="flex items-center gap-3">
               <div className="flex bg-white border border-[#e5dfd5] rounded-lg p-1">
                 {(['week', 'month'] as const).map(p => (
@@ -58,6 +67,7 @@ function DashboardContent({ profile }: { profile: Profile }) {
             </div>
           </div>
           <DashboardStats period={period} userId={profile.user_id} />
+        </div>
         </div>
       </main>
     </div>
