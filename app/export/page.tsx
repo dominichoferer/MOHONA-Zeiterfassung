@@ -38,26 +38,20 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder }: {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // selected = [] means "Alle" (no filter)
-  const allSelected = selected.length === 0
+  // selected = [] means nothing selected = no filter (show all)
+  const allChecked = selected.length === options.length && options.length > 0
   const filtered = options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()))
 
   function handleItemClick(id: string) {
-    if (allSelected) {
-      // from "all" → select only this one
-      onChange([id])
-    } else if (selected.includes(id)) {
-      // deselect this one
-      const next = selected.filter(s => s !== id)
-      onChange(next) // if next = [], "Alle" is auto-active again
-    } else {
-      // add this one
-      const next = [...selected, id]
-      onChange(next.length === options.length ? [] : next)
-    }
+    if (selected.includes(id)) onChange(selected.filter(s => s !== id))
+    else onChange([...selected, id])
   }
 
-  const label = allSelected
+  function handleToggleAll() {
+    onChange(allChecked ? [] : options.map(o => o.id))
+  }
+
+  const label = selected.length === 0
     ? placeholder
     : selected.length === 1
       ? options.find(o => o.id === selected[0])?.name ?? '1 ausgewählt'
@@ -67,9 +61,9 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder }: {
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between border border-[#e5dfd5] rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light">
-        <span className={!allSelected ? 'text-[#1e1813]' : 'text-[#b5a99a]'}>{label}</span>
+        <span className={selected.length > 0 ? 'text-[#1e1813]' : 'text-[#b5a99a]'}>{label}</span>
         <div className="flex items-center gap-1">
-          {!allSelected && (
+          {selected.length > 0 && (
             <span onClick={e => { e.stopPropagation(); onChange([]) }}
               className="text-[#b5a99a] hover:text-[#1e1813]"><X size={12} /></span>
           )}
@@ -87,15 +81,15 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder }: {
           )}
           <div className="max-h-52 overflow-y-auto py-1">
             {/* Alle */}
-            <div className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#faf8f5] cursor-pointer" onClick={() => onChange([])}>
-              <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${allSelected ? 'bg-[#2c2316] border-[#2c2316]' : 'border-[#e5dfd5]'}`}>
-                {allSelected && <Check size={10} className="text-white" />}
+            <div className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#faf8f5] cursor-pointer" onClick={handleToggleAll}>
+              <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${allChecked ? 'bg-[#2c2316] border-[#2c2316]' : 'border-[#e5dfd5]'}`}>
+                {allChecked && <Check size={10} className="text-white" />}
               </div>
               <span className="text-sm text-[#1e1813] font-light">Alle</span>
             </div>
             <div className="border-t border-[#f5f0ea] my-0.5" />
             {filtered.map(o => {
-              const checked = allSelected || selected.includes(o.id)
+              const checked = selected.includes(o.id)
               return (
                 <div key={o.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#faf8f5] cursor-pointer" onClick={() => handleItemClick(o.id)}>
                   <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${checked ? 'bg-[#2c2316] border-[#2c2316]' : 'border-[#e5dfd5]'}`}>
@@ -321,11 +315,22 @@ td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
                 />
               </div>
               <div>
-                <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Von</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs text-[#8a7f72] uppercase tracking-wide">Von</label>
+                </div>
                 <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputClass} />
               </div>
               <div>
-                <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Bis</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs text-[#8a7f72] uppercase tracking-wide">Bis</label>
+                  <button onClick={() => {
+                    const n = new Date()
+                    setDateFrom(`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-01`)
+                    setDateTo(new Date(n.getFullYear(), n.getMonth()+1, 0).toISOString().split('T')[0])
+                  }} className="text-xs text-[#8a7f72] hover:text-[#2c2316] font-light underline underline-offset-2">
+                    Akt. Monat
+                  </button>
+                </div>
                 <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inputClass} />
               </div>
             </div>
