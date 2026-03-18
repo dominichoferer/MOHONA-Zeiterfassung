@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import AuthGuard from '@/components/AuthGuard'
 import AdminGuard from '@/components/AdminGuard'
 import Navbar from '@/components/Navbar'
-import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, doc, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Company, Project, Profile } from '@/lib/types'
 import { Plus, Pencil, X, Check, Search, CheckCircle, Circle, ChevronDown, ChevronUp } from 'lucide-react'
+import { formatDuration, formatDateShort } from '@/lib/utils'
 import CompanySelect from '@/components/CompanySelect'
 import DateNavigator from '@/components/DateNavigator'
 import CompanyBadge from '@/components/CompanyBadge'
@@ -41,9 +42,9 @@ function ProjekteContent({ profile }: { profile: Profile }) {
   const [saving, setSaving] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [allEntries, setAllEntries] = useState<{project_id: string; duration_minutes: number; date: string}[]>([])
-  const now = new Date()
-  const [dateFrom, setDateFrom] = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`)
-  const [dateTo, setDateTo] = useState(new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().split('T')[0])
+  const [dateFrom, setDateFrom] = useState('2000-01-01')
+  const [dateTo, setDateTo] = useState('2099-12-31')
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   void profile
 
   useEffect(() => {
@@ -127,7 +128,7 @@ function ProjekteContent({ profile }: { profile: Profile }) {
       </div>
 
       <div className="bg-white rounded-xl border border-[#e5dfd5] p-4 mb-4 flex items-center gap-3 flex-wrap">
-        <DateNavigator onChange={(from, to) => { setDateFrom(from); setDateTo(to) }} />
+        <DateNavigator initialMode="all" onChange={(from, to) => { setDateFrom(from); setDateTo(to) }} />
         <div className="w-52">
           <CompanySelect companies={companies} value={filterCompany} onChange={setFilterCompany} placeholder="Alle Firmen" />
         </div>
@@ -165,7 +166,8 @@ function ProjekteContent({ profile }: { profile: Profile }) {
                 <ProjectRow key={project.id} project={project} usedMinutes={usedMinutes} editId={editId} form={form} setForm={setForm} companies={companies} saving={saving}
                   onEdit={() => { setForm({ name: project.name, company_id: project.company_id, planned_hours: project.planned_hours?.toString() ?? '' }); setEditId(project.id); setShowAdd(false) }}
                   onUpdate={() => handleUpdate(project.id)} onCancelEdit={() => setEditId(null)}
-                  onToggleActive={() => toggleActive(project)} onToggleCompleted={() => toggleCompleted(project)} />
+                  onToggleActive={() => toggleActive(project)} onToggleCompleted={() => toggleCompleted(project)}
+                  onViewEntries={() => setSelectedProject(project)} />
               ))}
               {completedProjects.length > 0 && (
                 <tr>
@@ -182,23 +184,99 @@ function ProjekteContent({ profile }: { profile: Profile }) {
                 <ProjectRow key={project.id} project={project} usedMinutes={usedMinutes} editId={editId} form={form} setForm={setForm} companies={companies} saving={saving}
                   onEdit={() => { setForm({ name: project.name, company_id: project.company_id, planned_hours: project.planned_hours?.toString() ?? '' }); setEditId(project.id); setShowAdd(false) }}
                   onUpdate={() => handleUpdate(project.id)} onCancelEdit={() => setEditId(null)}
-                  onToggleActive={() => toggleActive(project)} onToggleCompleted={() => toggleCompleted(project)} completed />
+                  onToggleActive={() => toggleActive(project)} onToggleCompleted={() => toggleCompleted(project)}
+                  onViewEntries={() => setSelectedProject(project)} completed />
               ))}
             </tbody>
           </table>
         )}
       </div>
+      {selectedProject && (
+        <ProjectEntriesModal project={selectedProject} onClose={() => setSelectedProject(null)} />
+      )}
     </div>
   )
 }
 
-function ProjectRow({ project, usedMinutes, editId, form, setForm, companies, saving, onEdit, onUpdate, onCancelEdit, onToggleActive, onToggleCompleted, completed }: {
+function ProjectEntriesModal({ project, onClose }: { project: Project; onClose: () => void }) {
+  const [entries, setEntries] = useState<{ id: string; date: string; description: string; notes: string | null; duration_minutes: number; staff_code: string; staff_name?: string }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([
+      getDocs(query(collection(db, 'time_entries'), where('project_id', '==', project.id))),
+      getDocs(collection(db, 'profiles')),
+    ]).then(([snap, profSnap]) => {
+      const profMap = new Map(profSnap.docs.map(d => [d.id, (d.data() as { staff_name: string }).staff_name]))
+      const result = snap.docs.map(d => {
+        const data = d.data()
+        return { id: d.id, date: data.date, description: data.description, notes: data.notes ?? null, duration_minutes: data.duration_minutes, staff_code: data.staff_code, staff_name: profMap.get(data.user_id) }
+      }).sort((a, b) => b.date.localeCompare(a.date))
+      setEntries(result)
+      setLoading(false)
+    })
+  }, [project.id])
+
+  const total = entries.reduce((s, e) => s + e.duration_minutes, 0)
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl border border-[#e5dfd5] flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5dfd5] shrink-0">
+          <div>
+            <h2 className="text-xl text-[#1e1813]" style={{ fontFamily: 'Dazzle Unicase, sans-serif', fontWeight: 300 }}>{project.name}</h2>
+            <p className="text-xs text-[#8a7f72] mt-0.5 font-light">{project.company?.name ?? ''}</p>
+          </div>
+          <button onClick={onClose} className="text-[#b5a99a] hover:text-[#1e1813]"><X size={18} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          {loading ? (
+            <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-[#2c2316] border-t-transparent rounded-full animate-spin" /></div>
+          ) : entries.length === 0 ? (
+            <div className="text-center py-12 text-sm text-[#b5a99a] font-light">Keine Einträge für dieses Projekt</div>
+          ) : (
+            <table className="w-full">
+              <thead className="sticky top-0 bg-[#faf8f5] z-10">
+                <tr className="border-b border-[#e5dfd5]">
+                  {['Datum', 'Beschreibung', 'Mitarbeiter', 'Dauer'].map((h, i) => (
+                    <th key={i} className="text-left text-xs text-[#8a7f72] px-4 py-3 uppercase tracking-wide font-normal">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f5f0ea]">
+                {entries.map(e => (
+                  <tr key={e.id} className="hover:bg-[#faf8f5]">
+                    <td className="px-4 py-3 text-xs text-[#8a7f72] whitespace-nowrap font-light">{formatDateShort(e.date)}</td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-[#1e1813] font-light">{e.description}</span>
+                      {e.notes && <p className="text-xs text-[#b5a99a] font-light mt-0.5 truncate max-w-xs">{e.notes}</p>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#8a7f72] font-light whitespace-nowrap">{e.staff_name ?? e.staff_code}</td>
+                    <td className="px-4 py-3 text-xs font-medium text-[#1e1813] whitespace-nowrap">{formatDuration(e.duration_minutes)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="px-6 py-3 border-t border-[#e5dfd5] shrink-0 flex justify-between items-center">
+          <span className="text-xs text-[#8a7f72] font-light">{entries.length} Einträge</span>
+          <span className="text-sm font-medium text-[#1e1813]">{formatDuration(total)} gesamt</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProjectRow({ project, usedMinutes, editId, form, setForm, companies, saving, onEdit, onUpdate, onCancelEdit, onToggleActive, onToggleCompleted, onViewEntries, completed }: {
   project: Project; usedMinutes: Map<string, number>; editId: string | null
   form: { name: string; company_id: string; planned_hours: string }
   setForm: (f: { name: string; company_id: string; planned_hours: string }) => void
   companies: Company[]; saving: boolean; completed?: boolean
   onEdit: () => void; onUpdate: () => void; onCancelEdit: () => void
-  onToggleActive: () => void; onToggleCompleted: () => void
+  onToggleActive: () => void; onToggleCompleted: () => void; onViewEntries: () => void
 }) {
   const dim = completed ? 'opacity-40' : ''
   const used = (usedMinutes.get(project.id) ?? 0) / 60
@@ -213,7 +291,9 @@ function ProjectRow({ project, usedMinutes, editId, form, setForm, companies, sa
             {completed ? <CheckCircle size={16} /> : <Circle size={16} />}
           </button>
         </td>
-        <td className={`px-4 py-3 text-sm font-light ${completed ? 'text-[#b5a99a] line-through' : 'text-[#1e1813]'}`}>{project.name}</td>
+        <td className={`px-4 py-3 text-sm font-light ${completed ? 'text-[#b5a99a] line-through' : 'text-[#1e1813]'}`}>
+          <button onClick={onViewEntries} className="hover:underline text-left">{project.name}</button>
+        </td>
         <td className={`px-4 py-3 ${dim}`}><CompanyBadge company={project.company} size="sm" /></td>
         <td className={`px-4 py-3 min-w-[140px] ${dim}`}>
           {project.planned_hours ? (

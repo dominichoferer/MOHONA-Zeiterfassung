@@ -13,11 +13,12 @@ function lastDay(year: number, month: number): string { return fmtDate(new Date(
 
 interface DateNavigatorProps {
   onChange: (dateFrom: string, dateTo: string) => void
+  initialMode?: 'month' | 'day' | 'all'
 }
 
-export default function DateNavigator({ onChange }: DateNavigatorProps) {
+export default function DateNavigator({ onChange, initialMode = 'month' }: DateNavigatorProps) {
   const now = new Date()
-  const [mode, setMode] = useState<'month' | 'day' | 'all'>('month')
+  const [mode, setMode] = useState<'month' | 'day' | 'all'>(initialMode)
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [day, setDay] = useState(todayStr())
