@@ -40,7 +40,8 @@ function ProjekteContent({ profile }: { profile: Profile }) {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', company_id: '', planned_hours: '' })
   const [saving, setSaving] = useState(false)
-  const [showCompleted, setShowCompleted] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'open' | 'completed'>('open')
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
   const [allEntries, setAllEntries] = useState<{project_id: string; duration_minutes: number; date: string}[]>([])
   const [dateFrom, setDateFrom] = useState('2000-01-01')
   const [dateTo, setDateTo] = useState('2099-12-31')
@@ -56,6 +57,7 @@ function ProjekteContent({ profile }: { profile: Profile }) {
       const compList = c.docs.map(d => ({ id: d.id, ...d.data() } as Company)).filter(c => c.is_active).sort((a, b) => a.name.localeCompare(b.name))
       const compMap = new Map(compList.map(c => [c.id, c]))
       setCompanies(compList)
+      setExpandedCompanies(new Set(compList.map(c => c.id)))
       setProjects(p.docs.map(d => {
         const data = d.data()
         return { id: d.id, ...data, company: compMap.get(data.company_id) } as Project
@@ -76,9 +78,20 @@ function ProjekteContent({ profile }: { profile: Profile }) {
   const filtered = projects
     .filter(p => !filterCompany || p.company_id === filterCompany)
     .filter(p => !filterName || p.name.toLowerCase().includes(filterName.toLowerCase()))
+    .filter(p => statusFilter === 'open' ? !p.is_completed : !!p.is_completed)
 
-  const activeProjects = filtered.filter(p => !p.is_completed)
-  const completedProjects = filtered.filter(p => p.is_completed)
+  // Group by company
+  const grouped = companies
+    .map(c => ({ company: c, projects: filtered.filter(p => p.company_id === c.id) }))
+    .filter(g => g.projects.length > 0)
+
+  function toggleCompany(id: string) {
+    setExpandedCompanies(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   async function handleAdd() {
     if (!form.name.trim() || !form.company_id) return
@@ -128,14 +141,25 @@ function ProjekteContent({ profile }: { profile: Profile }) {
       </div>
 
       <div className="bg-white rounded-xl border border-[#e5dfd5] p-4 mb-4 flex items-center gap-3 flex-wrap">
+        {/* Status Toggle */}
+        <div className="flex bg-[#f5f0ea] rounded-lg p-0.5">
+          {(['open', 'completed'] as const).map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-md text-xs transition-colors ${statusFilter === s ? 'bg-white text-[#1e1813] shadow-sm font-medium' : 'text-[#8a7f72] font-light'}`}>
+              {s === 'open' ? 'Offen' : 'Abgeschlossen'}
+            </button>
+          ))}
+        </div>
+
         <DateNavigator initialMode="all" onChange={(from, to) => { setDateFrom(from); setDateTo(to) }} />
-        <div className="w-52">
+
+        <div className="w-44">
           <CompanySelect companies={companies} value={filterCompany} onChange={setFilterCompany} placeholder="Alle Firmen" />
         </div>
-        <div className="flex items-center gap-2 border border-[#e5dfd5] rounded-lg px-3 py-2.5 bg-white flex-1 max-w-xs">
+        <div className="flex items-center gap-2 border border-[#e5dfd5] rounded-lg px-3 py-2.5 bg-white flex-1 min-w-0">
           <Search size={13} className="text-[#b5a99a] shrink-0" />
           <input type="text" value={filterName} onChange={e => setFilterName(e.target.value)}
-            placeholder="Projekt suchen..." className="flex-1 text-sm text-[#1e1813] focus:outline-none font-light bg-transparent placeholder-[#b5a99a]" />
+            placeholder="Projekt suchen..." className="flex-1 min-w-0 text-sm text-[#1e1813] focus:outline-none font-light bg-transparent placeholder-[#b5a99a]" />
           {filterName && <button onClick={() => setFilterName('')}><X size={12} className="text-[#b5a99a] hover:text-[#1e1813]" /></button>}
         </div>
       </div>
@@ -147,50 +171,60 @@ function ProjekteContent({ profile }: { profile: Profile }) {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-[#e5dfd5] overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-[#2c2316] border-t-transparent rounded-full animate-spin" /></div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-sm text-[#b5a99a] font-light">Keine Projekte gefunden</div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#e5dfd5] bg-[#faf8f5]">
-                {['', 'Projekt', 'Firma', 'Stunden', 'Status', ''].map((h, i) => (
-                  <th key={i} className="text-left text-xs text-[#8a7f72] px-4 py-3 uppercase tracking-wide font-normal">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f5f0ea]">
-              {activeProjects.map(project => (
-                <ProjectRow key={project.id} project={project} usedMinutes={usedMinutes} editId={editId} form={form} setForm={setForm} companies={companies} saving={saving}
-                  onEdit={() => { setForm({ name: project.name, company_id: project.company_id, planned_hours: project.planned_hours?.toString() ?? '' }); setEditId(project.id); setShowAdd(false) }}
-                  onUpdate={() => handleUpdate(project.id)} onCancelEdit={() => setEditId(null)}
-                  onToggleActive={() => toggleActive(project)} onToggleCompleted={() => toggleCompleted(project)}
-                  onViewEntries={() => setSelectedProject(project)} />
-              ))}
-              {completedProjects.length > 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-2 bg-[#faf8f5]">
-                    <button onClick={() => setShowCompleted(v => !v)}
-                      className="flex items-center gap-1.5 text-xs text-[#8a7f72] hover:text-[#1e1813] font-light transition-colors">
-                      {showCompleted ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                      Abgeschlossene anzeigen ({completedProjects.length})
-                    </button>
-                  </td>
-                </tr>
-              )}
-              {showCompleted && completedProjects.map(project => (
-                <ProjectRow key={project.id} project={project} usedMinutes={usedMinutes} editId={editId} form={form} setForm={setForm} companies={companies} saving={saving}
-                  onEdit={() => { setForm({ name: project.name, company_id: project.company_id, planned_hours: project.planned_hours?.toString() ?? '' }); setEditId(project.id); setShowAdd(false) }}
-                  onUpdate={() => handleUpdate(project.id)} onCancelEdit={() => setEditId(null)}
-                  onToggleActive={() => toggleActive(project)} onToggleCompleted={() => toggleCompleted(project)}
-                  onViewEntries={() => setSelectedProject(project)} completed />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {loading ? (
+        <div className="bg-white rounded-xl border border-[#e5dfd5] flex justify-center py-12">
+          <div className="w-6 h-6 border-2 border-[#2c2316] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : grouped.length === 0 ? (
+        <div className="bg-white rounded-xl border border-[#e5dfd5] text-center py-12 text-sm text-[#b5a99a] font-light">
+          Keine Projekte gefunden
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {grouped.map(({ company, projects: companyProjects }) => {
+            const expanded = expandedCompanies.has(company.id)
+            const totalUsed = companyProjects.reduce((s, p) => s + (usedMinutes.get(p.id) ?? 0), 0)
+            return (
+              <div key={company.id} className="bg-white rounded-xl border border-[#e5dfd5] overflow-hidden">
+                {/* Company header */}
+                <button onClick={() => toggleCompany(company.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#faf8f5] transition-colors border-b border-[#e5dfd5] group">
+                  <CompanyBadge company={company} size="sm" />
+                  <span className="text-xs text-[#b5a99a] font-light">{companyProjects.length} {companyProjects.length === 1 ? 'Projekt' : 'Projekte'}</span>
+                  <span className="text-xs text-[#b5a99a] font-light">· {formatDuration(totalUsed)}</span>
+                  <span className="ml-auto text-[#b5a99a] group-hover:text-[#8a7f72] transition-colors">
+                    {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  </span>
+                </button>
+
+                {/* Projects table */}
+                {expanded && (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-[#faf8f5]">
+                        {['', 'Projekt', 'Stunden', 'Status', ''].map((h, i) => (
+                          <th key={i} className="text-left text-xs text-[#8a7f72] px-4 py-2.5 uppercase tracking-wide font-normal">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#f5f0ea]">
+                      {companyProjects.sort((a, b) => a.name.localeCompare(b.name)).map(project => (
+                        <ProjectRow key={project.id} project={project} usedMinutes={usedMinutes} editId={editId} form={form} setForm={setForm} companies={companies} saving={saving}
+                          onEdit={() => { setForm({ name: project.name, company_id: project.company_id, planned_hours: project.planned_hours?.toString() ?? '' }); setEditId(project.id); setShowAdd(false) }}
+                          onUpdate={() => handleUpdate(project.id)} onCancelEdit={() => setEditId(null)}
+                          onToggleActive={() => toggleActive(project)} onToggleCompleted={() => toggleCompleted(project)}
+                          onViewEntries={() => setSelectedProject(project)}
+                          completed={!!project.is_completed} />
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {selectedProject && (
         <ProjectEntriesModal project={selectedProject} onClose={() => setSelectedProject(null)} />
       )}
@@ -294,7 +328,6 @@ function ProjectRow({ project, usedMinutes, editId, form, setForm, companies, sa
         <td className={`px-4 py-3 text-sm font-light ${completed ? 'text-[#b5a99a] line-through' : 'text-[#1e1813]'}`}>
           <button onClick={onViewEntries} className="hover:underline text-left">{project.name}</button>
         </td>
-        <td className={`px-4 py-3 ${dim}`}><CompanyBadge company={project.company} size="sm" /></td>
         <td className={`px-4 py-3 min-w-[140px] ${dim}`}>
           {project.planned_hours ? (
             <div>
@@ -307,7 +340,7 @@ function ProjectRow({ project, usedMinutes, editId, form, setForm, companies, sa
                   style={{ width: `${pct}%`, backgroundColor: over ? '#dc2626' : pct > 80 ? '#d97706' : '#16a34a' }} />
               </div>
             </div>
-          ) : <span className="text-xs text-[#e5dfd5]">–</span>}
+          ) : <span className="text-xs text-[#b5a99a] font-light">{Math.round(used * 10) / 10}h</span>}
         </td>
         <td className={`px-4 py-3 ${dim}`}>
           <span className={`text-xs font-medium px-2 py-1 rounded-full ${project.is_active ? 'bg-green-50 text-green-700' : 'bg-[#f5f0ea] text-[#8a7f72]'}`}>
@@ -323,7 +356,7 @@ function ProjectRow({ project, usedMinutes, editId, form, setForm, companies, sa
       </tr>
       {editId === project.id && (
         <tr>
-          <td colSpan={6} className="px-4 py-4 bg-[#faf8f5] border-b border-[#e5dfd5]">
+          <td colSpan={5} className="px-4 py-4 bg-[#faf8f5] border-b border-[#e5dfd5]">
             <ProjectForm form={form} setForm={setForm} companies={companies} onSave={onUpdate} onCancel={onCancelEdit} saving={saving} />
           </td>
         </tr>
