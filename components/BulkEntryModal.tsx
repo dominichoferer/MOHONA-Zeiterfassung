@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase'
 import { Company, Project, Profile } from '@/lib/types'
 import { DURATION_OPTIONS } from '@/lib/config'
 import { todayISO, formatDuration } from '@/lib/utils'
-import { X, Sparkles, Upload, FileText, Trash2, CheckCircle2, ChevronDown, Loader2 } from 'lucide-react'
+import { X, Sparkles, Upload, FileText, Trash2, CheckCircle2, ChevronDown, Loader2, Mic, Square } from 'lucide-react'
 import CompanySelect from './CompanySelect'
 import * as XLSX from 'xlsx'
 
@@ -29,7 +29,7 @@ interface BulkEntryModalProps {
 const inputClass = "w-full border border-[#e5dfd5] rounded-lg px-3 py-2 text-sm text-[#1e1813] focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light bg-white"
 
 export default function BulkEntryModal({ profile, onClose, onSaved }: BulkEntryModalProps) {
-  const [tab, setTab] = useState<'text' | 'file'>('text')
+  const [tab, setTab] = useState<'text' | 'file' | 'voice'>('text')
   const [text, setText] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
@@ -41,6 +41,14 @@ export default function BulkEntryModal({ profile, onClose, onSaved }: BulkEntryM
   const fileRef = useRef<HTMLInputElement>(null)
   const dropRef = useRef<HTMLDivElement>(null)
 
+  // Voice state
+  const [recording, setRecording] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [interimText, setInterimText] = useState('')
+  const [speechSupported, setSpeechSupported] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null)
+
   useEffect(() => {
     Promise.all([
       getDocs(collection(db, 'companies')),
@@ -50,6 +58,75 @@ export default function BulkEntryModal({ profile, onClose, onSaved }: BulkEntryM
       setProjects(p.docs.map(d => ({ id: d.id, ...d.data() } as Project)).filter(p => p.is_active).sort((a, b) => a.name.localeCompare(b.name)))
     })
   }, [])
+
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any
+    setSpeechSupported(!!(w.SpeechRecognition || w.webkitSpeechRecognition))
+  }, [])
+
+  // Stop recording on unmount
+  useEffect(() => {
+    return () => { recognitionRef.current?.stop() }
+  }, [])
+
+  function startRecording() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition
+    if (!SR) return
+
+    const recognition = new SR()
+    recognition.lang = 'de-DE'
+    recognition.continuous = true
+    recognition.interimResults = true
+
+    let finalSoFar = ''
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (e: any) => {
+      let interim = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript
+        if (e.results[i].isFinal) {
+          finalSoFar += chunk + ' '
+        } else {
+          interim += chunk
+        }
+      }
+      setTranscript(finalSoFar)
+      setInterimText(interim)
+    }
+
+    recognition.onend = () => {
+      setRecording(false)
+      setInterimText('')
+      // Sync final transcript from closure
+      setTranscript(finalSoFar)
+    }
+
+    recognition.onerror = () => {
+      setRecording(false)
+      setInterimText('')
+    }
+
+    recognitionRef.current = recognition
+    recognition.start()
+    setRecording(true)
+  }
+
+  function stopRecording() {
+    recognitionRef.current?.stop()
+    setRecording(false)
+    setInterimText('')
+  }
+
+  function resetVoice() {
+    recognitionRef.current?.stop()
+    setRecording(false)
+    setTranscript('')
+    setInterimText('')
+  }
 
   async function handleAnalyze() {
     setError('')
@@ -61,10 +138,11 @@ export default function BulkEntryModal({ profile, onClose, onSaved }: BulkEntryM
         today: todayISO(),
       }
 
-      if (tab === 'file' && file) {
+      if (tab === 'voice') {
+        body.text = transcript.trim()
+      } else if (tab === 'file' && file) {
         const isExcel = file.name.match(/\.(xlsx?|ods)$/i)
         if (isExcel) {
-          // Parse Excel client-side → send as text
           const buf = await file.arrayBuffer()
           const wb = XLSX.read(buf)
           const rows: string[] = []
@@ -75,7 +153,6 @@ export default function BulkEntryModal({ profile, onClose, onSaved }: BulkEntryM
           })
           body.text = rows.join('\n')
         } else {
-          // Image or PDF → base64
           const base64 = await fileToBase64(file)
           body.file = { base64, mimeType: file.type || 'application/octet-stream', name: file.name }
         }
@@ -131,14 +208,16 @@ export default function BulkEntryModal({ profile, onClose, onSaved }: BulkEntryM
     })
   }
 
-  // Drag-and-drop
   function onDrop(ev: React.DragEvent) {
     ev.preventDefault()
     const f = ev.dataTransfer.files[0]
     if (f) setFile(f)
   }
 
-  const canAnalyze = tab === 'text' ? text.trim().length > 3 : !!file
+  const canAnalyze =
+    tab === 'text' ? text.trim().length > 3 :
+    tab === 'voice' ? transcript.trim().length > 3 :
+    !!file
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -164,15 +243,16 @@ export default function BulkEntryModal({ profile, onClose, onSaved }: BulkEntryM
             <div className="p-6 space-y-4">
               {/* Tab toggle */}
               <div className="flex bg-[#f5f0ea] rounded-lg p-0.5 w-fit">
-                {(['text', 'file'] as const).map(t => (
-                  <button key={t} onClick={() => setTab(t)}
-                    className={`px-4 py-1.5 rounded-md text-xs transition-colors ${tab === t ? 'bg-white text-[#1e1813] shadow-sm font-medium' : 'text-[#8a7f72] font-light'}`}>
-                    {t === 'text' ? 'Text eingeben' : 'Datei hochladen'}
+                {(['text', 'voice', 'file'] as const).map(t => (
+                  <button key={t} onClick={() => { setTab(t); if (t !== 'voice') stopRecording() }}
+                    className={`px-4 py-1.5 rounded-md text-xs transition-colors flex items-center gap-1.5 ${tab === t ? 'bg-white text-[#1e1813] shadow-sm font-medium' : 'text-[#8a7f72] font-light'}`}>
+                    {t === 'voice' && <Mic size={11} />}
+                    {t === 'text' ? 'Text eingeben' : t === 'voice' ? 'Sprache' : 'Datei hochladen'}
                   </button>
                 ))}
               </div>
 
-              {tab === 'text' ? (
+              {tab === 'text' && (
                 <div>
                   <label className="block text-xs text-[#8a7f72] mb-2 uppercase tracking-wide">Tätigkeiten — eine pro Zeile</label>
                   <textarea value={text} onChange={e => setText(e.target.value)} rows={10}
@@ -180,7 +260,77 @@ export default function BulkEntryModal({ profile, onClose, onSaved }: BulkEntryM
                     className="w-full border border-[#e5dfd5] rounded-xl px-4 py-3 text-sm text-[#1e1813] focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light resize-none placeholder-[#b5a99a] bg-white" />
                   <p className="text-xs text-[#b5a99a] mt-1.5 font-light">Firma, Projekt, Dauer und Datum werden automatisch erkannt</p>
                 </div>
-              ) : (
+              )}
+
+              {tab === 'voice' && (
+                <div className="space-y-4">
+                  {!speechSupported ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
+                      Spracherkennung wird in diesem Browser nicht unterstützt. Bitte Chrome oder Edge verwenden.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mic button area */}
+                      <div className="flex flex-col items-center gap-4 py-6">
+                        <button
+                          onClick={recording ? stopRecording : startRecording}
+                          className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+                            recording
+                              ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200'
+                              : 'bg-[#2c2316] hover:bg-[#3d3220] shadow-lg shadow-[#2c2316]/20'
+                          }`}
+                        >
+                          {recording && (
+                            <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-40" />
+                          )}
+                          {recording
+                            ? <Square size={26} className="text-white fill-white" />
+                            : <Mic size={26} className="text-white" />
+                          }
+                        </button>
+                        <p className="text-sm text-[#8a7f72] font-light">
+                          {recording ? 'Aufnahme läuft — tippe zum Stoppen' : transcript ? 'Aufnahme gestoppt' : 'Tippen zum Starten'}
+                        </p>
+                        {recording && (
+                          <div className="flex gap-1 items-end h-5">
+                            {[2, 4, 3, 5, 2, 4, 3, 2, 5, 3].map((h, i) => (
+                              <div key={i} className="w-1 bg-red-400 rounded-full animate-pulse"
+                                style={{ height: `${h * 4}px`, animationDelay: `${i * 80}ms` }} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Live transcript */}
+                      {(transcript || interimText) && (
+                        <div className="border border-[#e5dfd5] rounded-xl px-4 py-3 bg-[#faf8f5] min-h-[80px] text-sm font-light leading-relaxed">
+                          <span className="text-[#1e1813]">{transcript}</span>
+                          {interimText && <span className="text-[#b5a99a] italic">{interimText}</span>}
+                        </div>
+                      )}
+
+                      {transcript && !recording && (
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-[#8a7f72] font-light">
+                            {transcript.trim().split(/\s+/).length} Wörter erkannt
+                          </p>
+                          <button onClick={resetVoice} className="text-xs text-[#b5a99a] hover:text-red-500 underline font-light">
+                            Neu aufnehmen
+                          </button>
+                        </div>
+                      )}
+
+                      {!transcript && !recording && (
+                        <p className="text-xs text-[#b5a99a] text-center font-light">
+                          Erzähl einfach, was du heute gemacht hast — die KI erkennt Firma, Projekt und Dauer automatisch
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {tab === 'file' && (
                 <div ref={dropRef} onDragOver={e => e.preventDefault()} onDrop={onDrop}
                   onClick={() => fileRef.current?.click()}
                   className="border-2 border-dashed border-[#e5dfd5] rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer hover:border-[#2c2316] hover:bg-[#faf8f5] transition-colors">
@@ -206,7 +356,7 @@ export default function BulkEntryModal({ profile, onClose, onSaved }: BulkEntryM
 
               {error && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
-              <button onClick={handleAnalyze} disabled={!canAnalyze || analyzing}
+              <button onClick={handleAnalyze} disabled={!canAnalyze || analyzing || recording}
                 className="flex items-center gap-2 bg-[#2c2316] hover:bg-[#3d3220] disabled:opacity-50 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
                 {analyzing ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
                 {analyzing ? 'KI analysiert...' : 'Mit KI analysieren'}
