@@ -38,19 +38,26 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder }: {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  // selected = [] means "Alle" (no filter)
+  const allSelected = selected.length === 0
   const filtered = options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()))
-  const allSelected = selected.length === 0 || selected.length === options.length
 
-  function toggle(id: string) {
-    if (selected.includes(id)) onChange(selected.filter(s => s !== id))
-    else onChange([...selected, id])
+  function handleItemClick(id: string) {
+    if (allSelected) {
+      // from "all" → select only this one
+      onChange([id])
+    } else if (selected.includes(id)) {
+      // deselect this one
+      const next = selected.filter(s => s !== id)
+      onChange(next) // if next = [], "Alle" is auto-active again
+    } else {
+      // add this one
+      const next = [...selected, id]
+      onChange(next.length === options.length ? [] : next)
+    }
   }
 
-  function toggleAll() {
-    onChange([])
-  }
-
-  const label = selected.length === 0 || selected.length === options.length
+  const label = allSelected
     ? placeholder
     : selected.length === 1
       ? options.find(o => o.id === selected[0])?.name ?? '1 ausgewählt'
@@ -60,9 +67,9 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder }: {
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between border border-[#e5dfd5] rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light">
-        <span className={selected.length > 0 && selected.length < options.length ? 'text-[#1e1813]' : 'text-[#b5a99a]'}>{label}</span>
+        <span className={!allSelected ? 'text-[#1e1813]' : 'text-[#b5a99a]'}>{label}</span>
         <div className="flex items-center gap-1">
-          {selected.length > 0 && selected.length < options.length && (
+          {!allSelected && (
             <span onClick={e => { e.stopPropagation(); onChange([]) }}
               className="text-[#b5a99a] hover:text-[#1e1813]"><X size={12} /></span>
           )}
@@ -80,31 +87,28 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder }: {
           )}
           <div className="max-h-52 overflow-y-auto py-1">
             {/* Alle */}
-            <label className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#faf8f5] cursor-pointer">
+            <div className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#faf8f5] cursor-pointer" onClick={() => onChange([])}>
               <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${allSelected ? 'bg-[#2c2316] border-[#2c2316]' : 'border-[#e5dfd5]'}`}>
                 {allSelected && <Check size={10} className="text-white" />}
               </div>
               <span className="text-sm text-[#1e1813] font-light">Alle</span>
-            </label>
+            </div>
             <div className="border-t border-[#f5f0ea] my-0.5" />
             {filtered.map(o => {
-              const checked = selected.includes(o.id)
+              const checked = allSelected || selected.includes(o.id)
               return (
-                <label key={o.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#faf8f5] cursor-pointer" onClick={() => { if (allSelected) onChange(options.filter(x => x.id !== o.id).map(x => x.id)); else toggle(o.id) }}>
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${checked && !allSelected ? 'bg-[#2c2316] border-[#2c2316]' : 'border-[#e5dfd5]'}`}>
-                    {checked && !allSelected && <Check size={10} className="text-white" />}
+                <div key={o.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#faf8f5] cursor-pointer" onClick={() => handleItemClick(o.id)}>
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${checked ? 'bg-[#2c2316] border-[#2c2316]' : 'border-[#e5dfd5]'}`}>
+                    {checked && <Check size={10} className="text-white" />}
                   </div>
                   {o.color ? (
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: o.color, color: o.textColor ?? '#1e1813' }}>{o.name}</span>
                   ) : (
                     <span className="text-sm text-[#1e1813] font-light">{o.name}</span>
                   )}
-                </label>
+                </div>
               )
             })}
-          </div>
-          <div className="border-t border-[#f5f0ea] px-3 py-2 flex justify-end">
-            <button onClick={() => { toggleAll(); setSearch('') }} className="text-xs text-[#8a7f72] hover:text-[#1e1813] font-light">Auswahl zurücksetzen</button>
           </div>
         </div>
       )}
