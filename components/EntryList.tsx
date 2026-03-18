@@ -22,6 +22,7 @@ export default function EntryList({ profile }: EntryListProps) {
 
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
+  const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [editEntry, setEditEntry] = useState<TimeEntry | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -59,6 +60,7 @@ export default function EntryList({ profile }: EntryListProps) {
     const compMap = new Map(compSnap.docs.map(d => [d.id, { id: d.id, ...d.data() } as Company]))
     const projMap = new Map(projSnap.docs.map(d => [d.id, { id: d.id, ...d.data() }]))
     const profMap = profSnap ? new Map(profSnap.docs.map(d => [d.id, { id: d.id, user_id: d.id, ...d.data() } as Profile])) : new Map()
+    if (profSnap) setProfiles(Array.from(profMap.values()))
 
     let result = snap.docs.map(d => {
       const data = d.data()
@@ -194,7 +196,7 @@ export default function EntryList({ profile }: EntryListProps) {
       )}
 
       {editEntry && (
-        <EditEntryModal entry={editEntry} onClose={() => setEditEntry(null)}
+        <EditEntryModal entry={editEntry} isAdmin={isAdmin} profiles={profiles} onClose={() => setEditEntry(null)}
           onSaved={updated => { setEntries(prev => prev.map(e => e.id === updated.id ? updated : e)); setEditEntry(null) }} />
       )}
     </div>

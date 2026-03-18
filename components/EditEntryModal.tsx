@@ -3,20 +3,22 @@
 import { useEffect, useState } from 'react'
 import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { TimeEntry, Company, Project } from '@/lib/types'
+import { TimeEntry, Company, Project, Profile } from '@/lib/types'
 import { DURATION_OPTIONS } from '@/lib/config'
 import { X, ChevronDown } from 'lucide-react'
 import CompanySelect from './CompanySelect'
 
 interface EditEntryModalProps {
   entry: TimeEntry
+  isAdmin?: boolean
+  profiles?: Profile[]
   onClose: () => void
   onSaved: (updated: TimeEntry) => void
 }
 
 const inputClass = "w-full border border-[#e5dfd5] rounded-lg px-4 py-3 text-sm text-[#1e1813] focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light"
 
-export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryModalProps) {
+export default function EditEntryModal({ entry, isAdmin, profiles, onClose, onSaved }: EditEntryModalProps) {
   const [companies, setCompanies] = useState<Company[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [description, setDescription] = useState(entry.description)
@@ -25,6 +27,7 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
   const [projectId, setProjectId] = useState(entry.project_id ?? '')
   const [durationMinutes, setDurationMinutes] = useState(entry.duration_minutes)
   const [date, setDate] = useState(entry.date)
+  const [userId, setUserId] = useState(entry.user_id)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -52,11 +55,22 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
     setSaving(true)
     setError('')
     try {
-      const updates = { description, notes: notes || null, company_id: companyId, project_id: projectId || null, duration_minutes: durationMinutes, date, updated_at: new Date().toISOString() }
+      const selectedProfile = profiles?.find(p => p.user_id === userId)
+      const updates = {
+        description,
+        notes: notes || null,
+        company_id: companyId,
+        project_id: projectId || null,
+        duration_minutes: durationMinutes,
+        date,
+        user_id: userId,
+        staff_code: selectedProfile?.staff_code ?? entry.staff_code,
+        updated_at: new Date().toISOString(),
+      }
       await updateDoc(doc(db, 'time_entries', entry.id), updates)
       const companyData = companies.find(c => c.id === companyId)
       const projectData = projects.find(p => p.id === projectId)
-      onSaved({ ...entry, ...updates, company: companyData, project: projectData })
+      onSaved({ ...entry, ...updates, company: companyData, project: projectData, profile: selectedProfile })
     } catch (err) {
       setError('Fehler beim Speichern: ' + (err as Error).message)
       setSaving(false)
@@ -108,6 +122,21 @@ export default function EditEntryModal({ entry, onClose, onSaved }: EditEntryMod
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputClass} />
             </div>
           </div>
+
+          {isAdmin && profiles && profiles.length > 0 && (
+            <div>
+              <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Mitarbeiter</label>
+              <div className="relative">
+                <select value={userId} onChange={e => setUserId(e.target.value)}
+                  className="w-full border border-[#e5dfd5] rounded-lg px-4 py-3 pr-9 text-sm text-[#1e1813] appearance-none focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light">
+                  {profiles.filter(p => p.is_active).sort((a, b) => a.staff_name.localeCompare(b.staff_name)).map(p => (
+                    <option key={p.user_id} value={p.user_id}>{p.staff_name} ({p.staff_code})</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#b5a99a] pointer-events-none" />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Dauer</label>
