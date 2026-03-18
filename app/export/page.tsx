@@ -1,15 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AuthGuard from '@/components/AuthGuard'
 import Navbar from '@/components/Navbar'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 import { Company, Project, TimeEntry, Profile } from '@/lib/types'
 import { formatDuration, startOfMonthISO } from '@/lib/utils'
-import { Download, FileText, FileSpreadsheet } from 'lucide-react'
+import { Download, FileText, FileSpreadsheet, Check, ChevronDown, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
-import CompanySelect from '@/components/CompanySelect'
 
 export default function ExportPage() {
   return (
@@ -19,11 +18,107 @@ export default function ExportPage() {
   )
 }
 
+// ── Multi-Select Dropdown ────────────────────────────────────────────────────
+
+interface MultiSelectOption { id: string; name: string; color?: string; textColor?: string }
+
+function MultiSelectDropdown({ options, selected, onChange, placeholder }: {
+  options: MultiSelectOption[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+  placeholder: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()))
+  const allSelected = selected.length === 0 || selected.length === options.length
+
+  function toggle(id: string) {
+    if (selected.includes(id)) onChange(selected.filter(s => s !== id))
+    else onChange([...selected, id])
+  }
+
+  function toggleAll() {
+    onChange([])
+  }
+
+  const label = selected.length === 0 || selected.length === options.length
+    ? placeholder
+    : selected.length === 1
+      ? options.find(o => o.id === selected[0])?.name ?? '1 ausgewählt'
+      : `${selected.length} ausgewählt`
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between border border-[#e5dfd5] rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#2c2316] font-light">
+        <span className={selected.length > 0 && selected.length < options.length ? 'text-[#1e1813]' : 'text-[#b5a99a]'}>{label}</span>
+        <div className="flex items-center gap-1">
+          {selected.length > 0 && selected.length < options.length && (
+            <span onClick={e => { e.stopPropagation(); onChange([]) }}
+              className="text-[#b5a99a] hover:text-[#1e1813]"><X size={12} /></span>
+          )}
+          <ChevronDown size={14} className={`text-[#b5a99a] transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-1 w-full bg-white border border-[#e5dfd5] rounded-xl shadow-lg overflow-hidden">
+          {options.length > 5 && (
+            <div className="px-3 pt-2.5 pb-1.5 border-b border-[#f5f0ea]">
+              <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Suchen..." className="w-full text-sm text-[#1e1813] focus:outline-none font-light placeholder-[#b5a99a]" />
+            </div>
+          )}
+          <div className="max-h-52 overflow-y-auto py-1">
+            {/* Alle */}
+            <label className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#faf8f5] cursor-pointer">
+              <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${allSelected ? 'bg-[#2c2316] border-[#2c2316]' : 'border-[#e5dfd5]'}`}>
+                {allSelected && <Check size={10} className="text-white" />}
+              </div>
+              <span className="text-sm text-[#1e1813] font-light">Alle</span>
+            </label>
+            <div className="border-t border-[#f5f0ea] my-0.5" />
+            {filtered.map(o => {
+              const checked = selected.includes(o.id)
+              return (
+                <label key={o.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[#faf8f5] cursor-pointer" onClick={() => { if (allSelected) onChange(options.filter(x => x.id !== o.id).map(x => x.id)); else toggle(o.id) }}>
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${checked && !allSelected ? 'bg-[#2c2316] border-[#2c2316]' : 'border-[#e5dfd5]'}`}>
+                    {checked && !allSelected && <Check size={10} className="text-white" />}
+                  </div>
+                  {o.color ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: o.color, color: o.textColor ?? '#1e1813' }}>{o.name}</span>
+                  ) : (
+                    <span className="text-sm text-[#1e1813] font-light">{o.name}</span>
+                  )}
+                </label>
+              )
+            })}
+          </div>
+          <div className="border-t border-[#f5f0ea] px-3 py-2 flex justify-end">
+            <button onClick={() => { toggleAll(); setSearch('') }} className="text-xs text-[#8a7f72] hover:text-[#1e1813] font-light">Auswahl zurücksetzen</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Export Content ───────────────────────────────────────────────────────────
+
 function ExportContent({ profile }: { profile: Profile }) {
   const [companies, setCompanies] = useState<Company[]>([])
   const [projects, setProjects] = useState<Project[]>([])
-  const [filterCompany, setFilterCompany] = useState('')
-  const [filterProject, setFilterProject] = useState('')
+  const [filterCompanies, setFilterCompanies] = useState<string[]>([])
+  const [filterProjects, setFilterProjects] = useState<string[]>([])
   const [dateFrom, setDateFrom] = useState(startOfMonthISO())
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0])
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
@@ -37,14 +132,22 @@ function ExportContent({ profile }: { profile: Profile }) {
     })
     getDocs(collection(db, 'projects')).then(snap => {
       setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as Project))
-        .filter(p => p.is_active).sort((a, b) => a.name.localeCompare(b.name)))
+        .filter(p => p.is_active && !p.is_completed).sort((a, b) => a.name.localeCompare(b.name)))
     })
   }, [])
 
-  useEffect(() => { loadPreview() }, [filterCompany, filterProject, dateFrom, dateTo])
+  useEffect(() => { loadPreview() }, [filterCompanies, filterProjects, dateFrom, dateTo])
 
-  // Reset project filter when company changes
-  useEffect(() => { setFilterProject('') }, [filterCompany])
+  // When company selection changes, remove project selections that don't belong to selected companies
+  useEffect(() => {
+    if (filterCompanies.length === 0) return
+    const validProjects = visibleProjects.map(p => p.id)
+    setFilterProjects(prev => prev.filter(id => validProjects.includes(id)))
+  }, [filterCompanies])
+
+  const visibleProjects = filterCompanies.length === 0
+    ? projects
+    : projects.filter(p => filterCompanies.includes(p.company_id))
 
   async function fetchEntries(): Promise<TimeEntry[]> {
     const uid = auth.currentUser?.uid
@@ -61,8 +164,8 @@ function ExportContent({ profile }: { profile: Profile }) {
         return { id: d.id, ...data, company: compMap.get(data.company_id), project: projMap.get(data.project_id) } as TimeEntry
       })
       .filter(e => e.date >= dateFrom && e.date <= dateTo)
-      .filter(e => !filterCompany || e.company_id === filterCompany)
-      .filter(e => !filterProject || e.project_id === filterProject)
+      .filter(e => filterCompanies.length === 0 || (e.company_id != null && filterCompanies.includes(e.company_id)))
+      .filter(e => filterProjects.length === 0 || (e.project_id != null && filterProjects.includes(e.project_id)))
       .sort((a, b) => b.date.localeCompare(a.date))
   }
 
@@ -71,6 +174,12 @@ function ExportContent({ profile }: { profile: Profile }) {
     const all = await fetchEntries()
     setPreview(all.slice(0, 10))
     setLoadingPreview(false)
+  }
+
+  function filterLabel() {
+    const c = filterCompanies.length === 0 ? 'Alle Firmen' : filterCompanies.length === 1 ? companies.find(x => x.id === filterCompanies[0])?.name ?? 'Firma' : `${filterCompanies.length} Firmen`
+    const p = filterProjects.length === 0 ? '' : filterProjects.length === 1 ? projects.find(x => x.id === filterProjects[0])?.name ?? 'Projekt' : `${filterProjects.length} Projekte`
+    return p ? `${c} · ${p}` : c
   }
 
   async function handleExcelExport() {
@@ -97,8 +206,6 @@ function ExportContent({ profile }: { profile: Profile }) {
     setExporting('pdf')
     const entries = await fetchEntries()
     const totalMinutes = entries.reduce((s, e) => s + e.duration_minutes, 0)
-    const companyFilter = filterCompany ? companies.find(c => c.id === filterCompany)?.name ?? '' : 'Alle Firmen'
-    const projectFilter = filterProject ? projects.find(p => p.id === filterProject)?.name ?? '' : ''
     const origin = window.location.origin
 
     const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
@@ -135,7 +242,7 @@ td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
   <div class="hero-title">Zeiterfassung</div>
   <div class="hero-sub">${dateFrom} – ${dateTo}</div>
   <div class="hero-meta">
-    <strong>${companyFilter}${projectFilter ? ` · ${projectFilter}` : ''}</strong>
+    <strong>${filterLabel()}</strong>
     &nbsp;· Erstellt am ${new Date().toLocaleDateString('de-AT', { day:'2-digit', month:'long', year:'numeric' })}
   </div>
 </div>
@@ -143,7 +250,7 @@ td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
   <div class="summary">
     <div class="card"><div class="label">Gesamtstunden</div><div class="value">${formatDuration(totalMinutes)}</div></div>
     <div class="card"><div class="label">Einträge</div><div class="value">${entries.length}</div></div>
-    <div class="card"><div class="label">Firma</div><div class="value" style="font-size:14px;margin-top:8px">${companyFilter}</div></div>
+    <div class="card"><div class="label">Firma</div><div class="value" style="font-size:14px;margin-top:8px">${filterCompanies.length === 0 ? 'Alle' : filterCompanies.length === 1 ? companies.find(c => c.id === filterCompanies[0])?.name ?? '' : `${filterCompanies.length} Firmen`}</div></div>
     <div class="card"><div class="label">Zeitraum</div><div class="value" style="font-size:13px;margin-top:8px">${dateFrom}<br>${dateTo}</div></div>
   </div>
   <table>
@@ -174,7 +281,6 @@ td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
   }
 
   const totalMinutes = preview.reduce((s, e) => s + e.duration_minutes, 0)
-
   const inputClass = "w-full border border-[#e5dfd5] rounded-lg px-3 py-2.5 text-sm text-[#1e1813] focus:outline-none focus:ring-2 focus:ring-[#2c2316] bg-white font-light"
 
   return (
@@ -194,14 +300,19 @@ td { padding:10px 14px;border-bottom:1px solid #f0ebe3;vertical-align:top; }
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Firma</label>
-                <CompanySelect companies={companies} value={filterCompany} onChange={setFilterCompany} placeholder="Alle Firmen" />
+                <MultiSelectDropdown
+                  options={companies.map(c => ({ id: c.id, name: c.name, color: c.color, textColor: c.text_color }))}
+                  selected={filterCompanies}
+                  onChange={setFilterCompanies}
+                  placeholder="Alle Firmen"
+                />
               </div>
               <div>
                 <label className="block text-xs text-[#8a7f72] mb-1.5 uppercase tracking-wide">Projekt</label>
-                <CompanySelect
-                  companies={(filterCompany ? projects.filter(p => p.company_id === filterCompany) : projects).map(p => ({ ...p, color: '#e5dfd5', text_color: '#1e1813' }))}
-                  value={filterProject}
-                  onChange={setFilterProject}
+                <MultiSelectDropdown
+                  options={visibleProjects.map(p => ({ id: p.id, name: p.name }))}
+                  selected={filterProjects}
+                  onChange={setFilterProjects}
                   placeholder="Alle Projekte"
                 />
               </div>
